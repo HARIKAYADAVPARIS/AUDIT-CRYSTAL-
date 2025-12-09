@@ -1,57 +1,708 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Audit Crystal | CSRD Readiness</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              audit: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                800: '#075985',
-                900: '#0c4a6e',
-              },
-              sustain: {
-                500: '#10b981',
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Crystal | Global Standards Engine</title>
+  <meta name="description" content="AI-powered CSRD, GRI, SASB & ISSB Audit Readiness Tool. Upload your sustainability report for instant gaps and scoring." />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            audit: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 800: '#075985', 900: '#0c4a6e' },
+            sustain: { 500: '#10b981' }
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          animation: {
+            'blob': 'blob 7s infinite',
+            'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
+          },
+          keyframes: {
+            blob: { '0%': { transform: 'translate(0px, 0px) scale(1)' }, '33%': { transform: 'translate(30px, -50px) scale(1.1)' }, '66%': { transform: 'translate(-20px, 20px) scale(0.9)' }, '100%': { transform: 'translate(0px, 0px) scale(1)' } },
+            fadeInUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } }
           }
         }
       }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Inter', sans-serif; }
-      .glass-panel {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-    </style>
+    }
+  </script>
+
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Inter', sans-serif; } </style>
+
+  <!-- Import Map for Google GenAI -->
   <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2"
+  {
+    "imports": {
+      "@google/genai": "https://esm.run/@google/genai"
+    }
   }
-}
-</script>
+  </script>
 </head>
-  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-audit-500 selection:text-white">
-    <div id="root"></div>
-  </body>
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-audit-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    import { GoogleGenAI } from "@google/genai";
+
+    // --- CONFIGURATION ---
+    window.process = { env: { } };
+
+    // --- TYPES & ENUMS ---
+    const AppState = {
+      IDLE: 'IDLE',
+      ANALYZING: 'ANALYZING',
+      COMPLETE: 'COMPLETE',
+      ERROR: 'ERROR'
+    };
+
+    // --- SERVICES ---
+    const generatePDF = (report) => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      doc.setFillColor(15, 23, 42); 
+      doc.rect(0, 0, pageWidth, 24, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("Audit Crystal", 14, 16);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Global Standards Engine", pageWidth - 14, 16, { align: "right" });
+
+      let y = 40;
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(24);
+      doc.setFont("helvetica", "bold");
+      doc.text("Audit Readiness Report", 14, y);
+      y += 10;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Document: ${report.documentTitle}`, 14, y);
+      y += 6;
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, y);
+      y += 6;
+      doc.text(`Sector: ${report.sectorGuess} | Region: ${report.jurisdictionGuess}`, 14, y);
+      y += 15;
+
+      if (report.executiveSummary) {
+        doc.setFontSize(14); doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold");
+        doc.text("Executive Summary", 14, y); y += 6;
+        doc.setFontSize(10); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+        const splitSum = doc.splitTextToSize(report.executiveSummary, pageWidth - 28);
+        doc.text(splitSum, 14, y); y += (splitSum.length * 5) + 10;
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, y, pageWidth - 28, 30, 3, 3, "FD");
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Global Composite Score", 20, y + 12);
+      const score = report.globalCompositeScore;
+      doc.setFontSize(32);
+      if (score > 75) doc.setTextColor(22, 163, 74);
+      else if (score > 40) doc.setTextColor(217, 119, 6);
+      else doc.setTextColor(220, 38, 38);
+      doc.text(`${score}/100`, pageWidth - 25, y + 20, { align: "right" });
+      y += 45;
+
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.text("Framework Evaluation", 14, y);
+      y += 5;
+
+      const tableData = report.standardsEvaluations.map(std => [
+        std.standardKey.replace(/_/g, " "),
+        std.maturityLabel,
+        `${std.overallScore}%`,
+        std.summary
+      ]);
+
+      doc.autoTable({
+        startY: y,
+        head: [["Framework", "Maturity", "Score", "Summary"]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 4 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 3: { cellWidth: 'auto' } }
+      });
+      y = doc.lastAutoTable.finalY + 15;
+
+      if (y > pageHeight - 50) { doc.addPage(); y = 30; }
+      doc.setFontSize(14);
+      doc.setTextColor(185, 28, 28);
+      doc.text("Critical Gaps", 14, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      doc.setFont("helvetica", "normal");
+      report.keyGaps.forEach((gap) => {
+        if (y > pageHeight - 20) { doc.addPage(); y = 30; }
+        const splitGap = doc.splitTextToSize(`• ${gap}`, pageWidth - 30);
+        doc.text(splitGap, 14, y);
+        y += (splitGap.length * 5) + 2;
+      });
+
+      doc.save("Audit_Crystal_Report.pdf");
+    };
+
+    const analyzeCSRDReadiness = async (content, apiKeyOverride) => {
+      const apiKey = apiKeyOverride || window.process.env.API_KEY;
+      if (!apiKey) throw new Error("API Key is missing or invalid.");
+      const ai = new GoogleGenAI({ apiKey });
+      const systemInstruction = `
+        You are "Audit Crystal Global Standards Engine".
+        Evaluate sustainability documents against global frameworks (CSRD, GRI, SASB, ISSB, TCFD, GHG Protocol).
+        Tasks: 
+        1. Determine sector/jurisdiction. 
+        2. Write a professional "Executive Summary" (max 100 words).
+        3. Evaluate alignment for each standard. Score 0-100. Identify gaps.
+           **IMPORTANT FOR SPEED:** For each standard, ONLY analyze the top 3-4 most critical topics/disclosures found in the text.
+        4. Identify top 5 critical gaps and top 5 recommendations.
+        Output valid JSON.
+      `;
+
+      const parts = [];
+      if (content.text) parts.push({ text: `DOCUMENT START\n${content.text}\nDOCUMENT END` });
+      if (content.file) parts.push({ inlineData: { mimeType: content.file.mimeType, data: content.file.base64 } });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: { parts },
+        config: {
+          systemInstruction,
+          temperature: 0,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              documentTitle: { type: "STRING" },
+              sectorGuess: { type: "STRING" },
+              jurisdictionGuess: { type: "STRING" },
+              executiveSummary: { type: "STRING" },
+              globalCompositeScore: { type: "INTEGER" },
+              keyGaps: { type: "ARRAY", items: { type: "STRING" } },
+              globalRecommendations: { type: "ARRAY", items: { type: "STRING" } },
+              standardsEvaluations: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    standardKey: { type: "STRING" },
+                    overallScore: { type: "INTEGER" },
+                    maturityLabel: { type: "STRING" },
+                    summary: { type: "STRING" },
+                    topics: {
+                      type: "ARRAY",
+                      items: {
+                        type: "OBJECT",
+                        properties: {
+                          topicId: { type: "STRING" },
+                          score: { type: "INTEGER" },
+                          coverageLevel: { type: "STRING" },
+                          reasoning: { type: "STRING" },
+                          evidenceSnippets: { type: "ARRAY", items: { type: "STRING" } },
+                          recommendations: { type: "ARRAY", items: { type: "STRING" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      return JSON.parse(response.text);
+    };
+
+    const generateDraftFix = async (gap, sector, apiKeyOverride) => {
+       const apiKey = apiKeyOverride || window.process.env.API_KEY;
+       const ai = new GoogleGenAI({ apiKey });
+       const prompt = `You are a sustainability consultant. Write a professional DRAFT DISCLOSURE paragraph for a company in the ${sector} sector to address this gap: "${gap}". Use placeholders [like this] for data.`;
+       const res = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
+       return res.text;
+    };
+
+    // --- COMPONENTS ---
+
+    const Navbar = () => (
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
+        <div className="container mx-auto px-4 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+             <img src="/Audit Crystal Logo Design.png" alt="Audit Crystal Logo" className="h-10 w-auto object-contain select-none" />
+             <span className="font-bold text-lg text-slate-900">Audit Crystal</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+            <a href="#upload-section" className="hover:text-audit-600">Scan</a>
+            <a href="#why-audit-crystal" className="hover:text-audit-600">Why It Works</a>
+            <a href="#pricing" className="hover:text-audit-600">Pricing</a>
+            <a href="#contact" className="hover:text-audit-600 text-audit-600">Book Demo</a>
+          </nav>
+          <button onClick={() => document.getElementById("upload-section")?.scrollIntoView({ behavior: "smooth" })} className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition">Start Free Scan</button>
+        </div>
+      </header>
+    );
+
+    const LegalModal = ({ isOpen, onClose, type }) => {
+      if (!isOpen) return null;
+      React.useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = 'unset'; } }, []);
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col z-10">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h2 className="text-xl font-bold text-slate-900">{type === 'privacy' ? 'Privacy Policy' : 'Terms'}</h2>
+              <button onClick={onClose}>✕</button>
+            </div>
+            <div className="p-6 overflow-y-auto text-sm text-slate-600">
+              <p>This is a demo legal modal. In a real app, strict legal text goes here.</p>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const UploadSection = ({ onAnalyze, isAnalyzing }) => {
+      const [text, setText] = React.useState('');
+      const [file, setFile] = React.useState(null);
+      const [dragActive, setDragActive] = React.useState(false);
+
+      const handleDrag = React.useCallback((e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+        else if (e.type === "dragleave") setDragActive(false);
+      }, []);
+
+      const processFile = (selectedFile) => {
+        if(selectedFile.size > 10 * 1024 * 1024) { alert("File is too large. Max 10MB."); return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => setFile({ name: selectedFile.name, mimeType: selectedFile.type, base64: ev.target.result.split(',')[1] });
+        reader.readAsDataURL(selectedFile);
+      };
+
+      const handleDrop = React.useCallback((e) => {
+        e.preventDefault(); e.stopPropagation(); setDragActive(false);
+        if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0]);
+      }, []);
+
+      const handleFile = (e) => {
+        const f = e.target.files?.[0];
+        if (f) processFile(f);
+      };
+
+      return (
+        <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in-up">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden grid grid-cols-1 md:grid-cols-2">
+             <div 
+               className={`relative p-10 flex flex-col items-center justify-center text-center transition-all duration-200 min-h-[300px] border-r border-slate-100
+                 ${dragActive ? 'bg-audit-50 border-2 border-dashed border-audit-500 scale-[1.02] shadow-xl z-20' : 'bg-slate-50 border border-transparent'}`}
+               onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+             >
+                <input type="file" accept=".pdf,.txt" onChange={handleFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" disabled={isAnalyzing} />
+                
+                {dragActive && (
+                  <div className="absolute inset-0 bg-audit-100/50 flex items-center justify-center z-10 pointer-events-none backdrop-blur-sm">
+                    <div className="bg-white px-6 py-3 rounded-xl shadow-xl"><p className="text-xl font-bold text-audit-600 animate-pulse">Drop file to analyze</p></div>
+                  </div>
+                )}
+                
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-audit-600 mb-4 text-2xl">📄</div>
+                {file ? (
+                  <div className="space-y-2 z-20 relative bg-white px-6 py-3 rounded-xl shadow-sm border border-slate-100">
+                    <p className="font-bold text-slate-800">{file.name}</p>
+                    <button onClick={(e) => { e.preventDefault(); setFile(null); }} className="text-xs text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full">Remove</button>
+                  </div>
+                ) : (
+                  <p className="font-bold text-slate-900">Drop PDF here</p>
+                )}
+             </div>
+             <div className="p-8 bg-white flex flex-col">
+                <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Or paste text..." className="flex-1 w-full p-4 rounded-xl border border-slate-200 resize-none text-sm" rows={5} disabled={isAnalyzing}></textarea>
+             </div>
+          </div>
+          <button onClick={() => onAnalyze(file, text)} disabled={(!file && !text) || isAnalyzing} className="w-full py-4 bg-audit-600 text-white font-bold rounded-xl hover:bg-audit-700 transition disabled:bg-slate-200">
+            {isAnalyzing ? 'Scanning...' : 'Run Analysis'}
+          </button>
+        </div>
+      );
+    };
+
+    const ScoreRing = ({ score, size = 'lg' }) => {
+      const r = size === 'lg' ? 36 : 20;
+      const dim = size === 'lg' ? 96 : 48;
+      const circ = 2 * Math.PI * r;
+      const offset = circ - (score / 100) * circ;
+      const color = score > 80 ? '#10b981' : score > 50 ? '#f59e0b' : '#ef4444';
+      return (
+        <div className={`relative flex items-center justify-center ${size === 'lg' ? 'w-24 h-24' : 'w-12 h-12'}`}>
+          <svg className="w-full h-full transform -rotate-90">
+            <circle cx={dim/2} cy={dim/2} r={r} stroke="#f1f5f9" strokeWidth={size==='lg'?8:4} fill="transparent" />
+            <circle cx={dim/2} cy={dim/2} r={r} stroke={color} strokeWidth={size==='lg'?8:4} fill="transparent" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
+          </svg>
+          <span className={`absolute font-bold text-slate-900 ${size==='lg'?'text-2xl':'text-xs'}`}>{score}</span>
+        </div>
+      );
+    };
+
+    const ReportView = ({ report, onReset, apiKey }) => {
+      const [selKey, setSelKey] = React.useState(report.standardsEvaluations[0]?.standardKey);
+      const [fixDraft, setFixDraft] = React.useState(null);
+      const [loadingFix, setLoadingFix] = React.useState(false);
+
+      const selected = report.standardsEvaluations.find(s => s.standardKey === selKey);
+
+      const handleFix = async (rec, sector) => {
+        setLoadingFix(true);
+        try {
+          const text = await generateDraftFix(rec, sector, apiKey);
+          setFixDraft(text);
+        } catch(e) { setFixDraft("Error generating fix."); }
+        setLoadingFix(false);
+      };
+
+      return (
+        <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-wrap gap-6 items-center justify-between">
+            <div className="flex items-center gap-4">
+               {/* STANDALONE REPORT HEADER LOGO */}
+               <div className="h-12 w-12 flex items-center justify-center text-audit-600">
+                  <img src="/Audit Crystal Logo Design.png" alt="Logo" className="h-10 w-auto object-contain" />
+               </div>
+               <div>
+                  <h1 className="text-2xl font-bold text-slate-900">{report.documentTitle || 'Audit Report'}</h1>
+                  <p className="text-sm text-slate-500">{report.sectorGuess} • {report.jurisdictionGuess}</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-6">
+               <div className="text-right">
+                 <p className="text-xs font-bold text-slate-400 uppercase">Global Score</p>
+                 <ScoreRing score={report.globalCompositeScore} />
+               </div>
+               <div className="flex flex-col gap-2">
+                 <button onClick={() => generatePDF(report)} className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg">Download PDF</button>
+                 <button onClick={onReset} className="text-xs text-slate-500 hover:underline text-right">New Scan</button>
+               </div>
+            </div>
+          </div>
+
+          {report.executiveSummary && (
+             <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-lg">
+                <h3 className="font-bold text-lg mb-2">Executive Summary</h3>
+                <p className="text-slate-300 text-sm leading-relaxed">{report.executiveSummary}</p>
+             </div>
+          )}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-4 space-y-3">
+               {report.standardsEvaluations.map(std => (
+                 <div key={std.standardKey} onClick={() => setSelKey(std.standardKey)} className={`p-4 rounded-xl border cursor-pointer ${std.standardKey === selKey ? 'bg-audit-50 border-audit-500 ring-1 ring-audit-500' : 'bg-white border-slate-200 hover:border-audit-300'}`}>
+                    <div className="flex justify-between items-center mb-1">
+                       <span className="font-bold text-sm text-slate-800">{std.standardKey.replace(/_/g, ' ')}</span>
+                       <span className="text-xs font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-600">{std.maturityLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <ScoreRing score={std.overallScore} size="sm" />
+                       <span className="text-xs text-slate-500 line-clamp-1">{std.summary}</span>
+                    </div>
+                 </div>
+               ))}
+            </div>
+            <div className="lg:col-span-8 space-y-6">
+              {selected && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                   <div className="p-6 bg-slate-50 border-b border-slate-100">
+                      <h2 className="text-xl font-bold text-slate-900">{selected.standardKey.replace(/_/g, ' ')} Analysis</h2>
+                      <p className="text-sm text-slate-600 mt-1">{selected.summary}</p>
+                   </div>
+                   <div className="divide-y divide-slate-100">
+                      {selected.topics.map((t, i) => (
+                        <div key={i} className="p-4 hover:bg-slate-50 group">
+                           <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold text-sm text-slate-800">{t.topicId}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${t.coverageLevel==='full'?'bg-green-500':t.coverageLevel==='partial'?'bg-amber-500':'bg-red-500'}`}></span>
+                                <span className="font-bold text-sm">{t.score}/100</span>
+                              </div>
+                           </div>
+                           <p className="text-xs text-slate-600 mb-2">{t.reasoning}</p>
+                           {t.recommendations?.length > 0 && (
+                             <div className="flex justify-between items-center bg-blue-50 p-2 rounded">
+                               <span className="text-xs text-blue-700">→ {t.recommendations[0]}</span>
+                               {t.coverageLevel !== 'full' && (
+                                 <button onClick={(e) => { e.stopPropagation(); handleFix(t.recommendations[0], report.sectorGuess); }} className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 ml-2">
+                                   Draft Fix
+                                 </button>
+                               )}
+                             </div>
+                           )}
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {fixDraft && (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setFixDraft(null)}></div>
+                <div className="relative bg-white rounded-xl p-6 max-w-lg w-full z-10">
+                   <h3 className="font-bold text-lg mb-2">AI Draft Disclosure</h3>
+                   <div className="bg-slate-50 p-4 rounded border border-slate-200 text-sm text-slate-700 mb-4">{fixDraft}</div>
+                   <button onClick={() => { navigator.clipboard.writeText(fixDraft); setFixDraft(null); }} className="w-full py-2 bg-slate-900 text-white rounded font-bold">Copy & Close</button>
+                </div>
+             </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+               <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3">
+                 <div className="p-1.5 bg-red-100 rounded-lg text-red-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                 </div>
+                 <h3 className="text-red-900 font-bold text-lg">Critical Global Gaps</h3>
+               </div>
+               <div className="p-5 space-y-3">
+                 {report.keyGaps.map((gap, i) => (
+                   <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-red-50/50 border border-red-100/50">
+                      <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="text-red-800 text-sm font-medium leading-relaxed">{gap}</span>
+                   </div>
+                 ))}
+               </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
+               <div className="bg-blue-50 p-4 border-b border-blue-100 flex items-center gap-3">
+                 <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                 </div>
+                 <h3 className="text-blue-900 font-bold text-lg">Strategic Roadmap</h3>
+               </div>
+               <div className="p-5 space-y-3">
+                 {report.globalRecommendations.map((rec, i) => (
+                   <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-blue-50/50 border border-blue-100/50">
+                      <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 mt-0.5 text-xs font-bold">{i+1}</div>
+                      <span className="text-blue-800 text-sm font-medium leading-relaxed">{rec}</span>
+                   </div>
+                 ))}
+               </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 rounded-2xl p-8 text-center">
+             <h3 className="text-xl font-bold mb-2 text-white">Need a Certified Assurance Report?</h3>
+             <button onClick={() => document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})} className="px-6 py-2 bg-audit-500 rounded-lg font-bold hover:bg-audit-400 text-white">Contact Sales</button>
+          </div>
+        </div>
+      );
+    };
+
+    const PricingSection = () => (
+      <div id="pricing" className="py-20 px-4 text-center">
+        <h2 className="text-3xl font-bold text-slate-900 mb-12">Audit Pricing</h2>
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm"><h3 className="font-bold text-xl">Scan</h3><p className="text-4xl font-bold my-4">Free</p><p className="text-sm text-slate-500 mb-6">For instant checks</p><button className="w-full py-2 bg-slate-100 rounded-lg font-bold">Current</button></div>
+           <div className="bg-slate-900 text-white p-8 rounded-2xl border border-slate-800 shadow-xl transform md:-translate-y-4"><h3 className="font-bold text-xl">Deep Audit</h3><p className="text-4xl font-bold my-4">$499</p><p className="text-sm text-slate-400 mb-6">For consultants</p><button className="w-full py-2 bg-audit-600 rounded-lg font-bold hover:bg-audit-500">Book Audit</button></div>
+           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm"><h3 className="font-bold text-xl">Enterprise</h3><p className="text-4xl font-bold my-4">Custom</p><p className="text-sm text-slate-500 mb-6">Human verification</p><button className="w-full py-2 border-2 border-slate-900 rounded-lg font-bold">Contact</button></div>
+        </div>
+      </div>
+    );
+
+    const ContactSection = () => (
+      <section id="contact" className="py-24 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+        <div className="max-w-3xl mx-auto px-6 text-center mb-14 animate-fade-in-up">
+          <h2 className="text-4xl font-extrabold mb-4 tracking-tight">
+            Join the Audit Crystal Pilot Program
+          </h2>
+          <p className="text-slate-300 text-lg leading-relaxed">
+            Get a free CSRD gap scan, roadmap, and access to <span className="text-audit-400 font-bold">3 complimentary Deep Audits</span>.  
+            Limited pilot seats available.
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-6 animate-fade-in">
+          <div className="relative w-full shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/0 pointer-events-none"></div>
+
+            <div style={{ paddingTop: '150%', position: 'relative' }}>
+              <iframe 
+                src="https://docs.google.com/forms/d/e/1FAIpQLSdZpi_OZdimrjPloXzQ6scTbNN2Wc0Iwt8TrneyuPJD7g7Gxg/viewform?embedded=true"
+                className="absolute top-0 left-0 w-full h-full border-0"
+                frameBorder="0"
+                marginHeight={0}
+                marginWidth={0}
+                loading="lazy"
+                title="Audit Crystal Pilot Form"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center mt-10 text-slate-400 text-xs">
+          We respect your data. 100% GDPR compliant.
+        </div>
+      </section>
+    );
+
+    const WhySection = () => (
+      <div className="py-20 text-center">
+         <h2 className="text-3xl font-bold text-slate-900 mb-12">How it Works</h2>
+         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto px-4">
+            <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm"><div className="text-4xl mb-4">📄</div><h3 className="font-bold">1. Upload Report</h3><p className="text-sm text-slate-500 mt-2">Drag & drop your PDF or text.</p></div>
+            <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm"><div className="text-4xl mb-4">🧠</div><h3 className="font-bold">2. AI Analysis</h3><p className="text-sm text-slate-500 mt-2">Gemini maps against 9 frameworks.</p></div>
+            <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm"><div className="text-4xl mb-4">📊</div><h3 className="font-bold">3. Get Roadmap</h3><p className="text-sm text-slate-500 mt-2">See gaps and download PDF.</p></div>
+         </div>
+      </div>
+    );
+
+    // --- MAIN APP ---
+    const App = () => {
+      const [state, setState] = React.useState(AppState.IDLE);
+      const [report, setReport] = React.useState(null);
+      const [error, setError] = React.useState(null);
+      const [legal, setLegal] = React.useState({ open: false, type: 'privacy' });
+      const [apiKeyModal, setApiKeyModal] = React.useState(false);
+      const [userKey, setUserKey] = React.useState('');
+      const [tempKey, setTempKey] = React.useState('');
+
+      const handleAnalyze = async (file, text) => {
+        if (!window.process.env.API_KEY && !userKey) {
+           setApiKeyModal(true);
+           return;
+        }
+        setState(AppState.ANALYZING);
+        setError(null);
+        try {
+          const res = await analyzeCSRDReadiness({ file, text }, userKey);
+          setReport(res);
+          setState(AppState.COMPLETE);
+        } catch (e) {
+          console.error(e);
+          if (e.message.includes('API Key')) {
+             setApiKeyModal(true);
+             setState(AppState.IDLE);
+          } else {
+             setError(e.message || "Analysis failed.");
+             setState(AppState.ERROR);
+          }
+        }
+      };
+
+      const saveKey = () => {
+         if(tempKey.length > 10) {
+            setUserKey(tempKey);
+            setApiKeyModal(false);
+         }
+      };
+
+      const reset = () => { setState(AppState.IDLE); setReport(null); setError(null); };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          <div className="bg-slate-900 text-white text-xs font-bold py-2 text-center cursor-pointer" onClick={() => document.getElementById('contact')?.scrollIntoView()}>
+            Join Pilot Program — Get 3 Free Deep Audits →
+          </div>
+          <Navbar />
+          <LegalModal isOpen={legal.open} onClose={() => setLegal({ ...legal, open: false })} type={legal.type} />
+          
+          {apiKeyModal && (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+                <div className="relative bg-white rounded-2xl p-8 max-w-md w-full z-10 shadow-2xl animate-fade-in-up">
+                   <h3 className="text-xl font-bold mb-2 text-center">Enter Gemini API Key</h3>
+                   <p className="text-sm text-slate-500 mb-4 text-center">This demo requires your own API Key. It is not stored.</p>
+                   <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)} className="w-full border p-3 rounded-lg mb-4" placeholder="AIza..." />
+                   <button onClick={saveKey} className="w-full py-3 bg-slate-900 text-white font-bold rounded-lg">Start Audit</button>
+                   <p className="text-xs text-center mt-4"><a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-audit-600 underline">Get a free key here</a></p>
+                </div>
+             </div>
+          )}
+
+          <main className="flex-grow relative z-10">
+            {state === AppState.IDLE && (
+              <div className="pt-20 pb-12">
+                 <div className="container mx-auto px-4 text-center max-w-5xl mb-16">
+                    <div className="inline-block px-3 py-1 rounded-full bg-audit-50 text-audit-600 text-xs font-bold mb-8 border border-audit-100 shadow-sm">AI-Powered Assurance Engine</div>
+                    <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">Instant CSRD Gap Report for European SMEs — <span className="text-transparent bg-clip-text bg-gradient-to-r from-audit-600 to-sustain-500">Powered by Gemini</span></h1>
+                    <p className="text-2xl text-slate-600 mb-10 font-medium max-w-2xl mx-auto">Your automated CSRD readiness score in minutes.</p>
+                    <div className="flex justify-center gap-4">
+                      <button onClick={() => document.getElementById('upload-section')?.scrollIntoView({behavior:'smooth'})} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-xl shadow-xl hover:bg-slate-800 transition transform hover:-translate-y-1 text-lg">Run Free CSRD Scan</button>
+                      <button onClick={() => document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})} className="px-8 py-4 bg-white text-slate-700 border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition transform hover:-translate-y-1 text-lg font-bold">Book a Demo</button>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-6">Trusted by 500+ SMEs • SOC2 Secure</p>
+                 </div>
+                 <div id="upload-section" className="container mx-auto px-4 pb-20">
+                    <UploadSection onAnalyze={handleAnalyze} isAnalyzing={false} />
+                 </div>
+                 <WhySection />
+                 <PricingSection />
+                 <ContactSection />
+              </div>
+            )}
+
+            {state === AppState.ANALYZING && (
+              <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                 <div className="w-24 h-24 border-4 border-slate-200 border-t-audit-500 rounded-full animate-spin"></div>
+                 <h3 className="text-2xl font-bold text-slate-800">Global Standards Engine</h3>
+                 <p className="text-slate-500">Auditing against 9 frameworks...</p>
+              </div>
+            )}
+
+            {state === AppState.ERROR && (
+              <div className="container mx-auto px-4 py-16 text-center">
+                 <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl border border-red-100">
+                    <h3 className="text-xl font-bold text-red-600 mb-2">Analysis Failed</h3>
+                    <p className="text-slate-500 mb-6">{error}</p>
+                    <button onClick={reset} className="px-6 py-2 bg-slate-900 text-white rounded-lg">Try Again</button>
+                 </div>
+              </div>
+            )}
+
+            {state === AppState.COMPLETE && report && (
+              <div className="container mx-auto px-4 py-8">
+                 <ReportView report={report} onReset={reset} apiKey={userKey} />
+              </div>
+            )}
+          </main>
+
+          <footer className="py-12 bg-slate-50 border-t border-slate-200 text-center space-y-4">
+             <div className="flex justify-center gap-6 text-sm font-medium text-slate-600">
+                <button onClick={() => setLegal({ open: true, type: 'privacy' })} className="hover:text-audit-600">Privacy</button>
+                <button onClick={() => setLegal({ open: true, type: 'terms' })} className="hover:text-audit-600">Terms</button>
+             </div>
+             <p className="text-slate-400 text-xs">© 2024 Audit Crystal.</p>
+          </footer>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
 </html>
