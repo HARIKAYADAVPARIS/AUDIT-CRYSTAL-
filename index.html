@@ -87,6 +87,11 @@
 
     // --- CONFIGURATION ---
     window.process = { env: { } };
+    
+    // ⚠️ INSTRUCTIONS:
+    // To publish without prompts, paste your NEW Google Gemini API Key below.
+    // Get a key here: https://aistudio.google.com/app/apikey
+    const PUBLIC_API_KEY = "AIzaSyD-_kiS2lk5lqdkkMxHWmpf00lAXkCxPBI"; 
 
     // --- TYPES & ENUMS ---
     const AppState = {
@@ -182,42 +187,75 @@
       });
       y = doc.lastAutoTable.finalY + 15;
 
+      // -- NEW: CFO RISK TABLE --
+      const highRiskTopics = report.standardsEvaluations.flatMap(std => 
+        std.topics.filter(t => t.financialRisk === 'High' || t.financialRisk === 'Critical')
+      );
+
+      if (highRiskTopics.length > 0) {
+        if (y > pageHeight - 50) { doc.addPage(); y = 30; }
+        doc.setFontSize(14);
+        doc.setTextColor(185, 28, 28); // red-700
+        doc.text("Critical Gaps & Financial Impact", 14, y);
+        y += 8;
+
+        const riskData = highRiskTopics.map(t => [
+          t.topicId,
+          t.financialRisk || 'Unknown',
+          t.implementationCost || 'Unknown',
+          t.recommendations[0] || 'See report'
+        ]);
+
+        doc.autoTable({
+          startY: y,
+          head: [["Gap / Topic", "Fin. Risk", "Impl. Cost", "Recommendation"]],
+          body: riskData,
+          theme: 'striped',
+          headStyles: { fillColor: [185, 28, 28], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 3 },
+          columnStyles: { 0: { cellWidth: 40, fontStyle: 'bold' }, 1: { cellWidth: 20 }, 2: { cellWidth: 20 } }
+        });
+        y = doc.lastAutoTable.finalY + 15;
+      }
+
       if (y > pageHeight - 50) { doc.addPage(); y = 30; }
       doc.setFontSize(14);
-      doc.setTextColor(185, 28, 28);
-      doc.text("Critical Gaps", 14, y);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Strategic Roadmap", 14, y);
       y += 8;
       doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
       doc.setFont("helvetica", "normal");
-      report.keyGaps.forEach((gap) => {
+      report.globalRecommendations.forEach((rec) => {
         if (y > pageHeight - 20) { doc.addPage(); y = 30; }
-        const splitGap = doc.splitTextToSize(`• ${gap}`, pageWidth - 30);
-        doc.text(splitGap, 14, y);
-        y += (splitGap.length * 5) + 2;
+        const splitRec = doc.splitTextToSize(`• ${rec}`, pageWidth - 30);
+        doc.text(splitRec, 14, y);
+        y += (splitRec.length * 5) + 2;
       });
 
       doc.save("Audit_Crystal_Report.pdf");
     };
 
     const analyzeCSRDReadiness = async (content, apiKeyOverride) => {
-      const apiKey = apiKeyOverride || window.process.env.API_KEY;
+      const apiKey = apiKeyOverride || window.process.env.API_KEY || PUBLIC_API_KEY;
       if (!apiKey) throw new Error("API Key is missing or invalid.");
       const ai = new GoogleGenAI({ apiKey });
       const systemInstruction = `
-        You are "Audit Crystal Global Standards Engine" — a Tier-1 Auditor.
-        Evaluate sustainability documents against global frameworks (CSRD, GRI, SASB, ISSB, TCFD, GHG Protocol).
-        
-        CRITICAL THINKING PROCESS:
-        1. Verify Evidence: Do not give credit for vague marketing language.
-        2. Cross-Reference: Check against specific disclosure requirements.
-        3. Gap Analysis: Identify missing data tables or policies.
+        You are **Audit Crystal**, an advanced AI Sustainability Assurance Engine designed for CFOs and External Auditors.
+    
+        **YOUR KNOWLEDGE BASE:**
+        Apply deep forensic knowledge of: CSRD (ESRS 1, 2, E1-E5, S1-S4), GRI (Universal Standards), ISSB (IFRS S1 & S2), SASB, TCFD, and EU Taxonomy.
 
-        Tasks: 
-        1. Determine sector/jurisdiction. 
-        2. Write a professional "Executive Summary".
-        3. Evaluate alignment for each standard. Score 0-100.
-        4. Identify top critical gaps and recommendations.
+        **CFO INTELLIGENCE LAYER:**
+        For every finding, you MUST estimate:
+        1.  **Financial Risk:** If this gap remains, what is the risk to enterprise value, fines, or access to capital? (Low/Medium/High/Critical). *Critical* = Potential regulatory fine or loss of key investors.
+        2.  **Implementation Cost:** How expensive/complex is it to fix this gap? (Low/Medium/High). *High* = Requires new software, hiring consultants, or multi-year data collection.
+
+        **TASKS:**
+        1.  **Forensic Scan:** Analyze the document for *hard evidence* (tables, specific year-on-year data, citations of standards).
+        2.  **No Hallucinations:** If data is missing, state "Data Not Disclosed". Do not invent numbers.
+        3.  **CFO Persona:** Use professional, concise, risk-oriented language. Avoid "Cheerleading". Focus on compliance gaps.
+
         Output valid JSON.
       `;
 
@@ -230,7 +268,8 @@
         contents: { parts },
         config: {
           systemInstruction,
-          thinkingConfig: { thinkingBudget: 2048 },
+          thinkingConfig: { thinkingBudget: 0 },
+          temperature: 0,
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
@@ -262,7 +301,9 @@
                           reasoning: { type: "STRING" },
                           evidenceSnippets: { type: "ARRAY", items: { type: "STRING" } },
                           recommendations: { type: "ARRAY", items: { type: "STRING" } },
-                          remediationType: { type: "STRING" }
+                          remediationType: { type: "STRING" },
+                          financialRisk: { type: "STRING", enum: ["Low", "Medium", "High", "Critical"] },
+                          implementationCost: { type: "STRING", enum: ["Low", "Medium", "High"] }
                         }
                       }
                     }
@@ -277,9 +318,9 @@
     };
 
     const generateDraftFix = async (gap, sector, apiKeyOverride) => {
-       const apiKey = apiKeyOverride || window.process.env.API_KEY;
+       const apiKey = apiKeyOverride || window.process.env.API_KEY || PUBLIC_API_KEY;
        const ai = new GoogleGenAI({ apiKey });
-       const prompt = `You are a sustainability consultant. Write a professional DRAFT DISCLOSURE paragraph for a company in the ${sector} sector to address this gap: "${gap}". Use placeholders [like this] for data.`;
+       const prompt = `You are a Senior ESG Reporting Consultant. CONTEXT: Gap Identified: "${gap}", Sector: "${sector}". TASK: Generate a compliant draft disclosure (approx 100 words) to close this gap.`;
        const res = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
        return res.text;
     };
@@ -305,6 +346,41 @@
       </header>
     );
 
+    const ApiKeyModal = ({ isOpen, onSave }) => {
+      const [inputKey, setInputKey] = React.useState('');
+      if (!isOpen) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+          <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full border border-slate-700 shadow-2xl animate-fade-in-up">
+            <h3 className="text-xl font-bold text-white mb-2 text-center">Configure API Key</h3>
+            <p className="text-sm text-slate-400 mb-6 text-center">
+              The previously configured API Key was revoked by Google for safety. Please enter a new key to continue.
+            </p>
+            <input 
+              type="password" 
+              value={inputKey} 
+              onChange={(e) => setInputKey(e.target.value)}
+              placeholder="Paste your Gemini API Key here..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white mb-4 focus:ring-2 focus:ring-audit-500 outline-none transition-all"
+            />
+            <button 
+              onClick={() => onSave(inputKey)}
+              disabled={!inputKey}
+              className="w-full py-3 bg-gradient-to-r from-audit-600 to-audit-500 text-white font-bold rounded-lg hover:from-audit-500 hover:to-audit-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-audit-900/20"
+            >
+              Save & Continue
+            </button>
+            <div className="mt-4 text-center">
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-audit-500 hover:text-audit-400 underline">Generate a new free key here</a>
+            </div>
+            <p className="text-[10px] text-slate-600 text-center mt-4">
+              To skip this screen: Edit this file and paste your key into the <code>PUBLIC_API_KEY</code> variable.
+            </p>
+          </div>
+        </div>
+      );
+    };
+
     const LegalModal = ({ isOpen, onClose, type }) => {
       if (!isOpen) return null;
       React.useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = 'unset'; } }, []);
@@ -326,7 +402,7 @@
       );
     };
 
-    const UploadSection = ({ onAnalyze, isAnalyzing }) => {
+    const UploadSection = ({ onAnalyze, onDemoLoad, isAnalyzing }) => {
       const [text, setText] = React.useState('');
       const [file, setFile] = React.useState(null);
       const [dragActive, setDragActive] = React.useState(false);
@@ -338,7 +414,7 @@
       }, []);
 
       const processFile = (selectedFile) => {
-        if(selectedFile.size > 10 * 1024 * 1024) { alert("File is too large. Max 10MB."); return; }
+        if(selectedFile.size > 20 * 1024 * 1024) { alert("File is too large. Max 20MB."); return; }
         const reader = new FileReader();
         reader.onload = (ev) => setFile({ name: selectedFile.name, mimeType: selectedFile.type, base64: ev.target.result.split(',')[1] });
         reader.readAsDataURL(selectedFile);
@@ -356,44 +432,44 @@
 
       return (
         <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in-up">
-          <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden grid grid-cols-1 md:grid-cols-2">
-             <div 
-               className={`relative p-10 flex flex-col items-center justify-center text-center transition-all duration-200 min-h-[300px] border-r border-slate-800
-                 ${dragActive ? 'bg-slate-800/80 border-2 border-dashed border-audit-500 scale-[1.02] shadow-xl z-20' : 'bg-slate-900 hover:bg-slate-800/50 border border-transparent'}`}
-               onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
-             >
-                <input type="file" accept=".pdf,.txt" onChange={handleFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" disabled={isAnalyzing} />
-                
-                {dragActive && (
-                  <div className="absolute inset-0 bg-slate-900/90 flex items-center justify-center z-10 pointer-events-none backdrop-blur-sm">
-                    <div className="bg-slate-800 px-6 py-3 rounded-xl shadow-xl border border-audit-500/50"><p className="text-xl font-bold text-audit-400 animate-pulse">Drop file to analyze</p></div>
-                  </div>
-                )}
-                
-                <div className="w-16 h-16 bg-slate-800 text-audit-500 rounded-2xl border border-slate-700 flex items-center justify-center mb-6">📄</div>
-                {file ? (
-                  <div className="space-y-2 z-20 relative bg-slate-800 px-6 py-3 rounded-xl shadow-sm border border-slate-700">
-                    <p className="font-bold text-slate-200">{file.name}</p>
-                    <button onClick={(e) => { e.preventDefault(); setFile(null); }} className="text-xs text-red-400 hover:text-red-300 bg-red-900/20 px-3 py-1 rounded-full border border-red-900/30">Remove</button>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xl font-bold text-slate-100 mb-2">Drop PDF here</p>
-                    <p className="text-slate-400">Supports PDF, TXT</p>
-                  </>
-                )}
+           <div id="upload-area" className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden">
+             {/* Security Banner */}
+             <div className="bg-slate-950/50 border-b border-slate-800 px-6 py-2 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+               <div className="flex items-center gap-2"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>SECURE UPLOAD GATEWAY</div>
+               <div>TLS 1.3 ENCRYPTED</div>
              </div>
-             <div className="p-8 bg-slate-800/30 flex flex-col">
-                <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Or paste text..." className="flex-1 w-full p-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 resize-none text-sm placeholder-slate-500 focus:ring-2 focus:ring-audit-500" rows={5} disabled={isAnalyzing}></textarea>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x divide-slate-800">
+               <div 
+                 className={`relative p-10 flex flex-col items-center justify-center text-center transition-all duration-200 min-h-[300px] 
+                   ${dragActive ? 'bg-slate-800/80 border-2 border-dashed border-audit-500 scale-[1.02] shadow-xl z-50' : 'bg-slate-900 hover:bg-slate-800/50'}`}
+                 onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+               >
+                  <input type="file" accept=".pdf,.txt,.md,.csv" onChange={handleFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" disabled={isAnalyzing} />
+                  {dragActive && <div className="absolute inset-0 bg-slate-900/90 flex items-center justify-center z-10 pointer-events-none backdrop-blur-sm"><p className="text-xl font-bold text-audit-400 animate-pulse">Drop to Analyze</p></div>}
+                  <div className="w-16 h-16 bg-slate-800 text-audit-500 rounded-2xl flex items-center justify-center mb-6 border border-slate-700">📄</div>
+                  {file ? (
+                    <div className="space-y-2 z-20 relative bg-slate-800 px-6 py-3 rounded-xl shadow-sm border border-slate-700">
+                      <p className="font-bold text-slate-200">{file.name}</p>
+                      <button onClick={(e) => { e.preventDefault(); setFile(null); }} className="text-xs text-red-400 bg-red-900/20 px-3 py-1 rounded-full border border-red-900/30">Remove</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xl font-bold text-slate-100 mb-2">Drop PDF here</p>
+                      <p className="text-slate-400">Supports PDF, TXT (Max 20MB)</p>
+                    </>
+                  )}
+               </div>
+               <div className="p-8 bg-slate-800/30 flex flex-col">
+                  <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Or paste text..." className="flex-1 w-full p-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 resize-none text-sm placeholder-slate-500 focus:ring-2 focus:ring-audit-500" rows={5} disabled={isAnalyzing}></textarea>
+               </div>
              </div>
-          </div>
-          <button 
-            onClick={() => onAnalyze(file, text)} 
-            disabled={(!file && !text) || isAnalyzing} 
-            className={`w-full py-4 rounded-xl font-bold text-lg text-white transition-all ${(!file && !text) || isAnalyzing ? 'bg-slate-800 text-slate-600' : 'bg-gradient-to-r from-audit-600 to-audit-500 hover:from-audit-500 hover:to-audit-400 shadow-xl shadow-audit-900/40'}`}
-          >
-            {isAnalyzing ? 'Processing Audit...' : 'Run Analysis'}
-          </button>
+             <div className="bg-slate-900 p-6 border-t border-slate-800 flex items-center justify-between">
+                <button onClick={onDemoLoad} className="text-sm text-slate-500 hover:text-audit-400 font-medium flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> View Demo Report</button>
+                <button onClick={() => onAnalyze(file, text)} disabled={(!file && !text) || isAnalyzing} className={`px-8 py-3 rounded-xl font-bold text-white transition-all ${(!file && !text) || isAnalyzing ? 'bg-slate-800 text-slate-600' : 'bg-gradient-to-r from-audit-600 to-audit-500 hover:from-audit-500 hover:to-audit-400 shadow-xl'}`}>
+                  {isAnalyzing ? 'Processing...' : 'Run Analysis'}
+                </button>
+             </div>
+           </div>
         </div>
       );
     };
@@ -403,7 +479,7 @@
       const dim = size === 'lg' ? 96 : 48;
       const circ = 2 * Math.PI * r;
       const offset = circ - (score / 100) * circ;
-      const color = score > 80 ? '#10b981' : score > 50 ? '#f59e0b' : '#ef4444'; // Audit Gold used for medium
+      const color = score > 80 ? '#10b981' : score > 50 ? '#f59e0b' : '#ef4444';
       return (
         <div className={`relative flex items-center justify-center ${size === 'lg' ? 'w-24 h-24' : 'w-12 h-12'}`}>
           <svg className="w-full h-full transform -rotate-90">
@@ -419,89 +495,83 @@
       const [selKey, setSelKey] = React.useState(report.standardsEvaluations[0]?.standardKey);
       const [fixDraft, setFixDraft] = React.useState(null);
       const [loadingFix, setLoadingFix] = React.useState(false);
-
       const selected = report.standardsEvaluations.find(s => s.standardKey === selKey);
 
       const handleFix = async (rec, sector) => {
         setLoadingFix(true);
-        try {
-          const text = await generateDraftFix(rec, sector, apiKey);
-          setFixDraft(text);
-        } catch(e) { setFixDraft("Error generating fix."); }
+        try { const text = await generateDraftFix(rec, sector, apiKey); setFixDraft(text); } catch(e) { setFixDraft("Error generating fix."); }
         setLoadingFix(false);
       };
 
       return (
         <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-fade-in">
+          {/* Header & Score */}
           <div className="bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700 flex flex-wrap gap-6 items-center justify-between">
             <div className="flex items-center gap-4">
-               <div className="h-12 w-12 flex items-center justify-center text-audit-600">
-                  <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" onError={(e) => e.target.style.display='none'} />
-               </div>
-               <div>
-                  <h1 className="text-2xl font-bold text-white">{report.documentTitle || 'Audit Report'}</h1>
-                  <p className="text-sm text-slate-400">{report.sectorGuess} • {report.jurisdictionGuess}</p>
-               </div>
+               <div className="h-12 w-12 flex items-center justify-center text-audit-600"><img src="/logo.png" className="h-10 w-auto" onError={(e)=>e.target.style.display='none'} /></div>
+               <div><h1 className="text-2xl font-bold text-white">{report.documentTitle || 'Audit Report'}</h1><p className="text-sm text-slate-400">{report.sectorGuess} • {report.jurisdictionGuess}</p></div>
             </div>
             <div className="flex items-center gap-6">
-               <div className="text-right">
-                 <p className="text-xs font-bold text-slate-500 uppercase">Global Score</p>
-                 <ScoreRing score={report.globalCompositeScore} />
-               </div>
-               <div className="flex flex-col gap-2">
-                 <button onClick={() => generatePDF(report)} className="px-4 py-2 bg-slate-100 text-slate-900 text-sm font-bold rounded-lg hover:bg-white transition">Download PDF</button>
-                 <button onClick={onReset} className="text-xs text-slate-400 hover:text-white text-right">New Scan</button>
-               </div>
+               <div className="text-right"><p className="text-xs font-bold text-slate-500 uppercase">Score</p><ScoreRing score={report.globalCompositeScore} /></div>
+               <div className="flex flex-col gap-2"><button onClick={() => generatePDF(report)} className="px-4 py-2 bg-slate-100 text-slate-900 text-sm font-bold rounded-lg hover:bg-white">Download PDF</button><button onClick={onReset} className="text-xs text-slate-400 hover:text-white text-right">New Scan</button></div>
             </div>
           </div>
 
-          {report.executiveSummary && (
-             <div className="bg-gradient-to-r from-slate-900 to-slate-950 rounded-2xl p-6 text-white shadow-lg border border-slate-800">
-                <h3 className="font-bold text-lg mb-2 text-audit-500">Executive Summary</h3>
-                <p className="text-slate-300 text-sm leading-relaxed">{report.executiveSummary}</p>
-             </div>
-          )}
+          {/* Executive Summary */}
+          {report.executiveSummary && <div className="bg-gradient-to-r from-slate-900 to-slate-950 rounded-2xl p-6 text-white shadow-lg border border-slate-800"><h3 className="font-bold text-lg mb-2 text-audit-500">Executive Auditor Opinion</h3><p className="text-slate-300 text-sm leading-relaxed">{report.executiveSummary}</p></div>}
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 space-y-3">
                {report.standardsEvaluations.map(std => (
                  <div key={std.standardKey} onClick={() => setSelKey(std.standardKey)} className={`p-4 rounded-xl border cursor-pointer transition-all ${std.standardKey === selKey ? 'bg-audit-900/20 border-audit-600/50' : 'bg-slate-900 border-slate-800 hover:bg-slate-800'}`}>
-                    <div className="flex justify-between items-center mb-1">
-                       <span className={`font-bold text-sm ${std.standardKey === selKey ? 'text-audit-400' : 'text-slate-300'}`}>{std.standardKey.replace(/_/g, ' ')}</span>
-                       <span className={`text-xs font-bold px-2 py-0.5 rounded ${std.overallScore > 80 ? 'bg-emerald-900/30 text-emerald-400' : std.overallScore > 50 ? 'bg-audit-900/30 text-audit-400' : 'bg-red-900/30 text-red-400'}`}>{std.maturityLabel}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <ScoreRing score={std.overallScore} size="sm" />
-                       <span className="text-xs text-slate-500 line-clamp-1">{std.summary}</span>
-                    </div>
+                    <div className="flex justify-between items-center mb-1"><span className={`font-bold text-sm ${std.standardKey === selKey ? 'text-audit-400' : 'text-slate-300'}`}>{std.standardKey.replace(/_/g, ' ')}</span><span className={`text-xs font-bold px-2 py-0.5 rounded ${std.overallScore > 80 ? 'bg-emerald-900/30 text-emerald-400' : std.overallScore > 50 ? 'bg-audit-900/30 text-audit-400' : 'bg-red-900/30 text-red-400'}`}>{std.maturityLabel}</span></div>
+                    <div className="flex items-center gap-2"><ScoreRing score={std.overallScore} size="sm" /><span className="text-xs text-slate-500 line-clamp-1">{std.summary}</span></div>
                  </div>
                ))}
             </div>
             <div className="lg:col-span-8 space-y-6">
               {selected && (
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
-                   <div className="p-6 bg-slate-950/30 border-b border-slate-800">
-                      <h2 className="text-xl font-bold text-white">{selected.standardKey.replace(/_/g, ' ')} Analysis</h2>
-                      <p className="text-sm text-slate-400 mt-1">{selected.summary}</p>
-                   </div>
+                   <div className="p-6 bg-slate-950/30 border-b border-slate-800"><h2 className="text-xl font-bold text-white">{selected.standardKey.replace(/_/g, ' ')} Analysis</h2><p className="text-sm text-slate-400 mt-1">{selected.summary}</p></div>
                    <div className="divide-y divide-slate-800">
                       {selected.topics.map((t, i) => (
                         <div key={i} className="p-4 hover:bg-slate-800/50 group transition-colors">
                            <div className="flex justify-between items-center mb-2">
                               <span className="font-bold text-sm text-slate-200">{t.topicId}</span>
                               <div className="flex items-center gap-2">
+                                {/* Risk Badge */}
+                                {(t.financialRisk === 'High' || t.financialRisk === 'Critical') && (
+                                  <span className="text-[10px] text-red-500 font-bold bg-red-900/20 px-1 rounded border border-red-900/30">$ RISK</span>
+                                )}
                                 <span className={`w-2 h-2 rounded-full ${t.coverageLevel==='full'?'bg-emerald-500':t.coverageLevel==='partial'?'bg-audit-500':'bg-red-500'}`}></span>
                                 <span className={`font-bold text-sm ${t.score > 80 ? 'text-emerald-500' : t.score > 50 ? 'text-audit-500' : 'text-red-500'}`}>{t.score}/100</span>
                               </div>
                            </div>
+                           
+                           {/* CFO Impact Assessment */}
+                           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 mb-3">
+                              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">CFO Impact</h4>
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <p className="text-[10px] text-slate-500 uppercase mb-1">Financial Risk</p>
+                                    <div className="flex items-center gap-2">
+                                       <div className={`w-2 h-2 rounded-full ${t.financialRisk === 'Critical' ? 'bg-red-600 animate-pulse' : t.financialRisk === 'High' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
+                                       <span className={`text-xs font-bold ${t.financialRisk === 'Critical' || t.financialRisk === 'High' ? 'text-white' : 'text-slate-300'}`}>{t.financialRisk || 'N/A'}</span>
+                                    </div>
+                                 </div>
+                                 <div className="border-l border-slate-700 pl-4">
+                                    <p className="text-[10px] text-slate-500 uppercase mb-1">Impl. Cost</p>
+                                    <span className="text-xs font-bold text-slate-300">{t.implementationCost || 'N/A'}</span>
+                                 </div>
+                              </div>
+                           </div>
+
                            <p className="text-xs text-slate-400 mb-2">{t.reasoning}</p>
                            {t.recommendations?.length > 0 && (
                              <div className="flex justify-between items-center bg-slate-800/50 p-2 rounded border border-slate-700">
                                <span className="text-xs text-slate-300">→ {t.recommendations[0]}</span>
                                {t.coverageLevel !== 'full' && (
-                                 <button onClick={(e) => { e.stopPropagation(); handleFix(t.recommendations[0], report.sectorGuess); }} className="text-[10px] bg-white text-slate-900 px-2 py-1 rounded font-bold hover:bg-slate-200 ml-2">
-                                   Draft Fix
-                                 </button>
+                                 <button onClick={(e) => { e.stopPropagation(); handleFix(t.recommendations[0], report.sectorGuess); }} className="text-[10px] bg-white text-slate-900 px-2 py-1 rounded font-bold hover:bg-slate-200 ml-2">Draft Fix</button>
                                )}
                              </div>
                            )}
@@ -512,58 +582,7 @@
               )}
             </div>
           </div>
-          
-          {fixDraft && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setFixDraft(null)}></div>
-                <div className="relative bg-slate-800 rounded-xl p-6 max-w-lg w-full z-10 border border-slate-700 shadow-2xl">
-                   <h3 className="font-bold text-lg mb-2 text-white">AI Draft Disclosure</h3>
-                   <div className="bg-slate-900 p-4 rounded border border-slate-700 text-sm text-slate-300 mb-4 whitespace-pre-wrap font-mono">{fixDraft}</div>
-                   <button onClick={() => { navigator.clipboard.writeText(fixDraft); setFixDraft(null); }} className="w-full py-2 bg-audit-600 text-white rounded font-bold hover:bg-audit-500">Copy & Close</button>
-                </div>
-             </div>
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
-               <div className="bg-slate-950/30 p-4 border-b border-slate-800 flex items-center gap-3">
-                 <div className="p-1.5 bg-red-900/20 rounded-lg text-red-500 border border-red-900/30">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                 </div>
-                 <h3 className="text-red-400 font-bold text-lg">Critical Global Gaps</h3>
-               </div>
-               <div className="p-5 space-y-3">
-                 {report.keyGaps.map((gap, i) => (
-                   <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-red-900/10 border border-red-900/20">
-                      <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <span className="text-red-200 text-sm font-medium leading-relaxed">{gap}</span>
-                   </div>
-                 ))}
-               </div>
-            </div>
-
-            <div className="bg-slate-900 rounded-2xl shadow-sm border border-slate-800 overflow-hidden">
-               <div className="bg-slate-950/30 p-4 border-b border-slate-800 flex items-center gap-3">
-                 <div className="p-1.5 bg-audit-900/20 rounded-lg text-audit-500 border border-audit-900/30">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                 </div>
-                 <h3 className="text-audit-400 font-bold text-lg">Strategic Roadmap</h3>
-               </div>
-               <div className="p-5 space-y-3">
-                 {report.globalRecommendations.map((rec, i) => (
-                   <div key={i} className="flex gap-3 items-start p-3 rounded-xl bg-audit-900/10 border border-audit-900/20">
-                      <div className="w-5 h-5 rounded-full bg-audit-900/30 flex items-center justify-center text-audit-500 shrink-0 mt-0.5 text-xs font-bold">{i+1}</div>
-                      <span className="text-audit-100 text-sm font-medium leading-relaxed">{rec}</span>
-                   </div>
-                 ))}
-               </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-audit-600 to-audit-700 rounded-2xl p-8 text-center shadow-lg">
-             <h3 className="text-xl font-bold mb-2 text-white">Need a Certified Assurance Report?</h3>
-             <button onClick={() => document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})} className="px-6 py-2 bg-white text-audit-700 rounded-lg font-bold hover:bg-slate-100 shadow-md">Contact Sales</button>
-          </div>
+          {fixDraft && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setFixDraft(null)}></div><div className="relative bg-slate-800 rounded-xl p-6 max-w-lg w-full z-10 border border-slate-700 shadow-2xl"><h3 className="font-bold text-lg mb-2 text-white">AI Draft Disclosure</h3><div className="bg-slate-900 p-4 rounded border border-slate-700 text-sm text-slate-300 mb-4 whitespace-pre-wrap font-mono">{fixDraft}</div><button onClick={() => { navigator.clipboard.writeText(fixDraft); setFixDraft(null); }} className="w-full py-2 bg-audit-600 text-white rounded font-bold hover:bg-audit-500">Copy & Close</button></div></div>}
         </div>
       );
     };
@@ -582,20 +601,10 @@
     const ContactSection = () => (
       <section id="contact" className="py-24 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
         <div className="max-w-3xl mx-auto px-6 text-center mb-14 animate-fade-in-up">
-          <h2 className="text-4xl font-extrabold mb-4 tracking-tight">
-            Join the Audit Crystal Pilot Program
-          </h2>
-          <p className="text-slate-300 text-lg leading-relaxed">
-            Get a free CSRD gap scan, roadmap, and access to <span className="text-audit-500 font-bold">3 complimentary Deep Audits</span>.
-          </p>
+          <h2 className="text-4xl font-extrabold mb-4 tracking-tight">Join Pilot Program</h2>
+          <p className="text-slate-300 text-lg leading-relaxed">Get 3 complimentary Deep Audits.</p>
         </div>
-        <div className="max-w-3xl mx-auto px-6 animate-fade-in">
-          <div className="relative w-full shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-800">
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-               <p>Demo Form Placeholder (Google Forms)</p>
-            </div>
-          </div>
-        </div>
+        <div className="max-w-3xl mx-auto px-6 animate-fade-in"><div className="relative w-full shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-800"><div style={{ padding: '40px', textAlign: 'center' }}><p>Demo Form Placeholder</p></div></div></div>
       </section>
     );
 
@@ -616,63 +625,153 @@
       const [report, setReport] = React.useState(null);
       const [error, setError] = React.useState(null);
       const [legal, setLegal] = React.useState({ open: false, type: 'privacy' });
-      const [apiKeyModal, setApiKeyModal] = React.useState(false);
       const [userKey, setUserKey] = React.useState('');
-      const [tempKey, setTempKey] = React.useState('');
+      const [showKeyModal, setShowKeyModal] = React.useState(false);
 
       const handleAnalyze = async (file, text) => {
-        if (!window.process.env.API_KEY && !userKey) {
-           setApiKeyModal(true);
-           return;
+        // 1. Check if we have a valid key (Hardcoded OR User-entered)
+        const activeKey = PUBLIC_API_KEY || userKey;
+        
+        if (!activeKey) {
+          setShowKeyModal(true);
+          return;
         }
-        setState(AppState.ANALYZING);
-        setError(null);
-        try {
-          const res = await analyzeCSRDReadiness({ file, text }, userKey);
-          setReport(res);
-          setState(AppState.COMPLETE);
-        } catch (e) {
-          console.error(e);
-          if (e.message.includes('API Key')) {
-             setApiKeyModal(true);
-             setState(AppState.IDLE);
-          } else {
-             setError(e.message || "Analysis failed.");
-             setState(AppState.ERROR);
-          }
+
+        setState(AppState.ANALYZING); setError(null);
+        try { 
+            // Pass the activeKey to the service
+            const res = await analyzeCSRDReadiness({ file, text }, activeKey); 
+            setReport(res); 
+            setState(AppState.COMPLETE); 
+        } 
+        catch (e) { 
+            console.error(e); 
+            // If the error suggests the key is invalid (e.g. 403), show modal again
+            if (e.message.includes("403") || e.message.includes("API key") || e.message.includes("PERMISSION_DENIED")) {
+                setError("API Key Invalid or Leaked. Please enter a new one.");
+                setShowKeyModal(true);
+                setState(AppState.IDLE);
+            } else {
+                setError(e.message || "Analysis failed."); 
+                setState(AppState.ERROR); 
+            }
         }
       };
 
-      const saveKey = () => {
-         if(tempKey.length > 10) {
-            setUserKey(tempKey);
-            setApiKeyModal(false);
-         }
+      const handleKeySave = (key) => {
+        setUserKey(key);
+        setShowKeyModal(false);
+      };
+
+      const handleDemoLoad = () => {
+        setState(AppState.ANALYZING);
+        setError(null);
+        setTimeout(() => {
+          const demoData = {
+            documentTitle: "Nordic Manufacturing Group 2024",
+            sectorGuess: "Industrial Manufacturing",
+            jurisdictionGuess: "European Union (CSRD In-Scope)",
+            executiveSummary: "The report demonstrates strong foundational compliance with GRI standards but exhibits material gaps in CSRD/ESRS readiness, particularly regarding the 'Double Materiality' process and Scope 3 GHG accounting. While governance structures (G) are mature, quantitative targets for biodiversity (E4) and circular economy (E5) lack the granularity required by the Taxonomy Regulation. Financial materiality (ISSB S1) is well-articulated, but climate scenario analysis (TCFD) is limited to a single 2°C pathway.",
+            globalCompositeScore: 68,
+            auditId: "DEMO-X92",
+            timestamp: new Date().toISOString(),
+            keyGaps: [
+              "ESRS 1: Double Materiality methodology not fully disclosed.",
+              "ESRS E1-6: Scope 3 GHG emissions exclude 'Use of Sold Products'.",
+              "EU Taxonomy: CapEx alignment methodology missing.",
+              "TCFD: Physical risk analysis lacks financial impact modeling."
+            ],
+            globalRecommendations: [
+              "Formalize the Double Materiality stakeholder engagement process (ESRS 1).",
+              "Conduct a full Scope 3 screening to identify material categories beyond supply chain.",
+              "Integrate TCFD scenario analysis into financial planning for >4°C outcomes.",
+              "Align Biodiversity targets with TNFD framework to satisfy ESRS E4 requirements."
+            ],
+            standardsEvaluations: [
+              {
+                standardKey: "CSRD_ESRS",
+                overallScore: 62,
+                maturityLabel: "Maturing",
+                summary: "Partial alignment. General disclosures (ESRS 2) are strong, but environmental specifics (E1-E5) need data rigor.",
+                topics: [
+                   { 
+                     topicId: "ESRS E1 Climate Change", 
+                     score: 75, 
+                     coverageLevel: "partial",
+                     reasoning: "Scope 1 & 2 data is audit-ready. Scope 3 is incomplete. Transition plan is high-level.",
+                     evidenceSnippets: ["Scope 1: 45,000 tCO2e", "Scope 2 (Market-based): 12,000 tCO2e", "We are developing a roadmap for Scope 3."],
+                     recommendations: ["Calculate Scope 3 Cat 11 (Use of Sold Products).", "Publish a quantified Transition Plan aligned with 1.5°C."],
+                     remediationType: "DATA_TABLE",
+                     financialRisk: "Critical",
+                     implementationCost: "High"
+                   },
+                   { 
+                     topicId: "ESRS S1 Own Workforce", 
+                     score: 88, 
+                     coverageLevel: "full",
+                     reasoning: "Excellent disclosure of gender pay gap, injury rates, and collective bargaining coverage.",
+                     evidenceSnippets: ["Gender Pay Gap: 2.1%", "LTIFR: 0.5", "Collective Bargaining: 94% coverage"],
+                     recommendations: ["Maintain current reporting standard."],
+                     remediationType: "NARRATIVE",
+                     financialRisk: "Low",
+                     implementationCost: "Low"
+                   }
+                ]
+              },
+              {
+                standardKey: "ISSB",
+                overallScore: 78,
+                maturityLabel: "Advanced",
+                summary: "Strong connection between sustainability risks and enterprise value (IFRS S1).",
+                topics: [
+                  {
+                    topicId: "IFRS S2 Climate Resilience",
+                    score: 70,
+                    coverageLevel: "partial",
+                    reasoning: "Financial impact of climate transition risks is quantified, but physical risks are qualitative.",
+                    evidenceSnippets: ["Estimated carbon tax impact: €2.5M annually by 2030."],
+                    recommendations: ["Quantify asset value at risk from physical climate events (floods, heat)."],
+                    remediationType: "DATA_TABLE",
+                    financialRisk: "High",
+                    implementationCost: "Medium"
+                  }
+                ]
+              },
+              {
+                standardKey: "EU_TAXONOMY",
+                overallScore: 45,
+                maturityLabel: "Emerging",
+                summary: "Eligibility is reported, but Alignment criteria (Do No Significant Harm) documentation is missing.",
+                topics: [
+                  {
+                    topicId: "Taxonomy Alignment",
+                    score: 45,
+                    coverageLevel: "partial",
+                    reasoning: "Turnover eligibility reported (85%). Alignment assessment for DNSH is anecdotal.",
+                    evidenceSnippets: ["85% of turnover is Taxonomy-eligible."],
+                    recommendations: ["Conduct and document DNSH screening for all eligible activities."],
+                    remediationType: "POLICY",
+                    financialRisk: "Medium",
+                    implementationCost: "High"
+                  }
+                ]
+              }
+            ]
+          };
+          setReport(demoData);
+          setState(AppState.COMPLETE);
+        }, 2500);
       };
 
       const reset = () => { setState(AppState.IDLE); setReport(null); setError(null); };
 
       return (
         <div className="min-h-screen flex flex-col">
-          <div className="bg-gradient-to-r from-audit-600 to-audit-500 text-white text-xs font-bold py-2 text-center cursor-pointer" onClick={() => document.getElementById('contact')?.scrollIntoView()}>
-            Join Pilot Program — Get 3 Free Deep Audits →
-          </div>
+          <div className="bg-gradient-to-r from-audit-600 to-audit-500 text-white text-xs font-bold py-2 text-center cursor-pointer" onClick={() => document.getElementById('contact')?.scrollIntoView()}>Join Pilot Program — Get 3 Free Deep Audits →</div>
           <Navbar />
+          <ApiKeyModal isOpen={showKeyModal} onSave={handleKeySave} />
           <LegalModal isOpen={legal.open} onClose={() => setLegal({ ...legal, open: false })} type={legal.type} />
           
-          {apiKeyModal && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
-                <div className="relative bg-slate-800 rounded-2xl p-8 max-w-md w-full z-10 shadow-2xl animate-fade-in-up border border-slate-700">
-                   <h3 className="text-xl font-bold mb-2 text-center text-white">Enter Gemini API Key</h3>
-                   <p className="text-sm text-slate-400 mb-4 text-center">This demo requires your own API Key. It is not stored.</p>
-                   <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)} className="w-full border border-slate-600 bg-slate-900 text-white p-3 rounded-lg mb-4" placeholder="AIza..." />
-                   <button onClick={saveKey} className="w-full py-3 bg-gradient-to-r from-audit-600 to-audit-500 text-white font-bold rounded-lg hover:from-audit-500 hover:to-audit-400">Start Audit</button>
-                   <p className="text-xs text-center mt-4"><a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-audit-500 underline">Get a free key here</a></p>
-                </div>
-             </div>
-          )}
-
           <main className="flex-grow relative z-10">
             {state === AppState.IDLE && (
               <div className="pt-20 pb-12">
@@ -684,47 +783,20 @@
                       <button onClick={() => document.getElementById('upload-section')?.scrollIntoView({behavior:'smooth'})} className="px-8 py-4 bg-gradient-to-r from-audit-600 to-audit-500 text-white font-bold rounded-xl shadow-xl shadow-audit-900/40 hover:from-audit-500 hover:to-audit-400 transition transform hover:-translate-y-1 text-lg">Run Free CSRD Scan</button>
                       <button onClick={() => document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})} className="px-8 py-4 bg-slate-800 text-slate-200 border border-slate-700 rounded-xl shadow-sm hover:bg-slate-700 transition transform hover:-translate-y-1 text-lg font-bold">Book a Demo</button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-6">Trusted by 500+ SMEs • SOC2 Secure</p>
+                    <p className="text-xs text-slate-500 mt-6">Trusted by 500+ SMEs • Security-first architecture • GDPR-aware by design</p>
                  </div>
-                 <div id="upload-section" className="container mx-auto px-4 pb-20">
-                    <UploadSection onAnalyze={handleAnalyze} isAnalyzing={false} />
-                 </div>
+                 <div id="upload-section" className="container mx-auto px-4 pb-20"><UploadSection onAnalyze={handleAnalyze} onDemoLoad={handleDemoLoad} isAnalyzing={false} /></div>
                  <WhySection />
                  <PricingSection />
                  <ContactSection />
               </div>
             )}
-
-            {state === AppState.ANALYZING && (
-              <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
-                 <div className="w-24 h-24 border-4 border-slate-800 border-t-audit-500 rounded-full animate-spin"></div>
-                 <h3 className="text-2xl font-bold text-white">Global Standards Engine</h3>
-                 <p className="text-slate-400">Auditing against 9 frameworks...</p>
-              </div>
-            )}
-
-            {state === AppState.ERROR && (
-              <div className="container mx-auto px-4 py-16 text-center">
-                 <div className="max-w-md mx-auto bg-slate-900 p-8 rounded-2xl shadow-xl border border-red-900/30">
-                    <h3 className="text-xl font-bold text-red-500 mb-2">Analysis Failed</h3>
-                    <p className="text-slate-400 mb-6">{error}</p>
-                    <button onClick={reset} className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">Try Again</button>
-                 </div>
-              </div>
-            )}
-
-            {state === AppState.COMPLETE && report && (
-              <div className="container mx-auto px-4 py-8">
-                 <ReportView report={report} onReset={reset} apiKey={userKey} />
-              </div>
-            )}
+            {state === AppState.ANALYZING && <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6"><div className="w-24 h-24 border-4 border-slate-800 border-t-audit-500 rounded-full animate-spin"></div><h3 className="text-2xl font-bold text-white">Global Standards Engine</h3><p className="text-slate-400">Forensic Audit in progress...</p></div>}
+            {state === AppState.ERROR && <div className="container mx-auto px-4 py-16 text-center"><div className="max-w-md mx-auto bg-slate-900 p-8 rounded-2xl shadow-xl border border-red-900/30"><h3 className="text-xl font-bold text-red-500 mb-2">Analysis Failed</h3><p className="text-slate-400 mb-6">{error}</p><button onClick={reset} className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">Try Again</button></div></div>}
+            {state === AppState.COMPLETE && report && <div className="container mx-auto px-4 py-8"><ReportView report={report} onReset={reset} apiKey={userKey || PUBLIC_API_KEY} /></div>}
           </main>
-
           <footer className="py-12 bg-slate-950 border-t border-slate-900 text-center space-y-4">
-             <div className="flex justify-center gap-6 text-sm font-medium text-slate-500">
-                <button onClick={() => setLegal({ open: true, type: 'privacy' })} className="hover:text-audit-500">Privacy</button>
-                <button onClick={() => setLegal({ open: true, type: 'terms' })} className="hover:text-audit-500">Terms</button>
-             </div>
+             <div className="flex justify-center gap-6 text-sm font-medium text-slate-500"><button onClick={() => setLegal({ open: true, type: 'privacy' })} className="hover:text-audit-500">Privacy</button><button onClick={() => setLegal({ open: true, type: 'terms' })} className="hover:text-audit-500">Terms</button></div>
              <p className="text-slate-600 text-xs">© 2024 Audit Crystal.</p>
           </footer>
         </div>
