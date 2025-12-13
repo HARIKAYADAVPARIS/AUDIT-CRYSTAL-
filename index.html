@@ -69,36 +69,108 @@
           linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
   </style>
-
-  <!-- Import Map for Google GenAI -->
-  <script type="importmap">
-  {
-    "imports": {
-      "@google/genai": "https://esm.run/@google/genai"
-    }
-  }
-  </script>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased selection:bg-audit-500 selection:text-white grid-bg min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import { GoogleGenAI } from "@google/genai";
-
-    // --- CONFIGURATION ---
-    window.process = { env: { } };
-    
-    // ⚠️ INSTRUCTIONS:
-    // To publish without prompts, paste your NEW Google Gemini API Key below.
-    // Get a key here: https://aistudio.google.com/app/apikey
-    const PUBLIC_API_KEY = "AIzaSyD-_kiS2lk5lqdkkMxHWmpf00lAXkCxPBI"; 
-
     // --- TYPES & ENUMS ---
     const AppState = {
       IDLE: 'IDLE',
       ANALYZING: 'ANALYZING',
       COMPLETE: 'COMPLETE',
       ERROR: 'ERROR'
+    };
+
+    // --- MOCK DATA FOR DEMO MODE ---
+    const MOCK_REPORT_DATA = {
+        sectorGuess: "Industrial Manufacturing",
+        jurisdictionGuess: "European Union (CSRD In-Scope)",
+        executiveSummary: "The report demonstrates strong foundational compliance with GRI standards but exhibits material gaps in CSRD/ESRS readiness, particularly regarding the 'Double Materiality' process and Scope 3 GHG accounting. While governance structures (G) are mature, quantitative targets for biodiversity (E4) and circular economy (E5) lack the granularity required by the Taxonomy Regulation. Financial materiality (ISSB S1) is well-articulated, but climate scenario analysis (TCFD) is limited to a single 2°C pathway.",
+        globalCompositeScore: 68,
+        auditId: "DEMO-X92",
+        keyGaps: [
+          "ESRS 1: Double Materiality methodology not fully disclosed.",
+          "ESRS E1-6: Scope 3 GHG emissions exclude 'Use of Sold Products'.",
+          "EU Taxonomy: CapEx alignment methodology missing.",
+          "TCFD: Physical risk analysis lacks financial impact modeling."
+        ],
+        globalRecommendations: [
+          "Formalize the Double Materiality stakeholder engagement process (ESRS 1).",
+          "Conduct a full Scope 3 screening to identify material categories beyond supply chain.",
+          "Integrate TCFD scenario analysis into financial planning for >4°C outcomes.",
+          "Align Biodiversity targets with TNFD framework to satisfy ESRS E4 requirements."
+        ],
+        standardsEvaluations: [
+          {
+            standardKey: "CSRD_ESRS",
+            overallScore: 62,
+            maturityLabel: "Maturing",
+            summary: "Partial alignment. General disclosures (ESRS 2) are strong, but environmental specifics (E1-E5) need data rigor.",
+            topics: [
+               { 
+                 topicId: "ESRS E1 Climate Change", 
+                 score: 75, 
+                 coverageLevel: "partial",
+                 reasoning: "Scope 1 & 2 data is audit-ready. Scope 3 is incomplete. Transition plan is high-level.",
+                 evidenceSnippets: ["Scope 1: 45,000 tCO2e", "Scope 2 (Market-based): 12,000 tCO2e", "We are developing a roadmap for Scope 3."],
+                 recommendations: ["Calculate Scope 3 Cat 11 (Use of Sold Products).", "Publish a quantified Transition Plan aligned with 1.5°C."],
+                 remediationType: "DATA_TABLE",
+                 financialRisk: "Critical",
+                 implementationCost: "High"
+               },
+               { 
+                 topicId: "ESRS S1 Own Workforce", 
+                 score: 88, 
+                 coverageLevel: "full",
+                 reasoning: "Excellent disclosure of gender pay gap, injury rates, and collective bargaining coverage.",
+                 evidenceSnippets: ["Gender Pay Gap: 2.1%", "LTIFR: 0.5", "Collective Bargaining: 94% coverage"],
+                 recommendations: ["Maintain current reporting standard."],
+                 remediationType: "NARRATIVE",
+                 financialRisk: "Low",
+                 implementationCost: "Low"
+               }
+            ]
+          },
+          {
+            standardKey: "ISSB",
+            overallScore: 78,
+            maturityLabel: "Advanced",
+            summary: "Strong connection between sustainability risks and enterprise value (IFRS S1).",
+            topics: [
+              {
+                topicId: "IFRS S2 Climate Resilience",
+                score: 70,
+                coverageLevel: "partial",
+                reasoning: "Financial impact of climate transition risks is quantified, but physical risks are qualitative.",
+                evidenceSnippets: ["Estimated carbon tax impact: €2.5M annually by 2030."],
+                recommendations: ["Quantify asset value at risk from physical climate events (floods, heat)."],
+                remediationType: "DATA_TABLE",
+                financialRisk: "High",
+                implementationCost: "Medium"
+              }
+            ]
+          },
+          {
+            standardKey: "EU_TAXONOMY",
+            overallScore: 45,
+            maturityLabel: "Emerging",
+            summary: "Eligibility is reported, but Alignment criteria (Do No Significant Harm) documentation is missing.",
+            topics: [
+              {
+                topicId: "Taxonomy Alignment",
+                score: 45,
+                coverageLevel: "partial",
+                reasoning: "Turnover eligibility reported (85%). Alignment assessment for DNSH is anecdotal.",
+                evidenceSnippets: ["85% of turnover is Taxonomy-eligible."],
+                recommendations: ["Conduct and document DNSH screening for all eligible activities."],
+                remediationType: "POLICY",
+                financialRisk: "Medium",
+                implementationCost: "High"
+              }
+            ]
+          }
+        ]
     };
 
     // --- SERVICES ---
@@ -236,93 +308,48 @@
       doc.save("Audit_Crystal_Report.pdf");
     };
 
-    const analyzeCSRDReadiness = async (content, apiKeyOverride) => {
-      const apiKey = apiKeyOverride || window.process.env.API_KEY || PUBLIC_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing or invalid.");
-      const ai = new GoogleGenAI({ apiKey });
-      const systemInstruction = `
-        You are **Audit Crystal**, an advanced AI Sustainability Assurance Engine designed for CFOs and External Auditors.
-    
-        **YOUR KNOWLEDGE BASE:**
-        Apply deep forensic knowledge of: CSRD (ESRS 1, 2, E1-E5, S1-S4), GRI (Universal Standards), ISSB (IFRS S1 & S2), SASB, TCFD, and EU Taxonomy.
-
-        **CFO INTELLIGENCE LAYER:**
-        For every finding, you MUST estimate:
-        1.  **Financial Risk:** If this gap remains, what is the risk to enterprise value, fines, or access to capital? (Low/Medium/High/Critical). *Critical* = Potential regulatory fine or loss of key investors.
-        2.  **Implementation Cost:** How expensive/complex is it to fix this gap? (Low/Medium/High). *High* = Requires new software, hiring consultants, or multi-year data collection.
-
-        **TASKS:**
-        1.  **Forensic Scan:** Analyze the document for *hard evidence* (tables, specific year-on-year data, citations of standards).
-        2.  **No Hallucinations:** If data is missing, state "Data Not Disclosed". Do not invent numbers.
-        3.  **CFO Persona:** Use professional, concise, risk-oriented language. Avoid "Cheerleading". Focus on compliance gaps.
-
-        Output valid JSON.
-      `;
-
-      const parts = [];
-      if (content.text) parts.push({ text: `DOCUMENT START\n${content.text}\nDOCUMENT END` });
-      if (content.file) parts.push({ inlineData: { mimeType: content.file.mimeType, data: content.file.base64 } });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: { parts },
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingBudget: 0 },
-          temperature: 0,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              documentTitle: { type: "STRING" },
-              sectorGuess: { type: "STRING" },
-              jurisdictionGuess: { type: "STRING" },
-              executiveSummary: { type: "STRING" },
-              globalCompositeScore: { type: "INTEGER" },
-              keyGaps: { type: "ARRAY", items: { type: "STRING" } },
-              globalRecommendations: { type: "ARRAY", items: { type: "STRING" } },
-              standardsEvaluations: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    standardKey: { type: "STRING" },
-                    overallScore: { type: "INTEGER" },
-                    maturityLabel: { type: "STRING" },
-                    summary: { type: "STRING" },
-                    topics: {
-                      type: "ARRAY",
-                      items: {
-                        type: "OBJECT",
-                        properties: {
-                          topicId: { type: "STRING" },
-                          score: { type: "INTEGER" },
-                          coverageLevel: { type: "STRING" },
-                          reasoning: { type: "STRING" },
-                          evidenceSnippets: { type: "ARRAY", items: { type: "STRING" } },
-                          recommendations: { type: "ARRAY", items: { type: "STRING" } },
-                          remediationType: { type: "STRING" },
-                          financialRisk: { type: "STRING", enum: ["Low", "Medium", "High", "Critical"] },
-                          implementationCost: { type: "STRING", enum: ["Low", "Medium", "High"] }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    // --- MOCKED ANALYSIS SERVICE ---
+    const analyzeCSRDReadiness = async (content) => {
+      // MOCK: Simulate API latency
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // If the user uploaded a file, we use that name to make the demo feel real.
+          const docTitle = content.file ? content.file.name.replace(/\.[^/.]+$/, "") : "Nordic Manufacturing Group 2024";
+          
+          resolve({
+             ...MOCK_REPORT_DATA,
+             documentTitle: docTitle,
+             timestamp: new Date().toISOString()
+          });
+        }, 2500);
       });
-      return JSON.parse(response.text);
     };
 
-    const generateDraftFix = async (gap, sector, apiKeyOverride) => {
-       const apiKey = apiKeyOverride || window.process.env.API_KEY || PUBLIC_API_KEY;
-       const ai = new GoogleGenAI({ apiKey });
-       const prompt = `You are a Senior ESG Reporting Consultant. CONTEXT: Gap Identified: "${gap}", Sector: "${sector}". TASK: Generate a compliant draft disclosure (approx 100 words) to close this gap.`;
-       const res = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
-       return res.text;
+    const generateDraftFix = async (gap, sector) => {
+        // MOCK: Simulate API latency
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(
+`**DRAFT DISCLOSURE: [${gap}]**
+
+In alignment with ${sector} best practices and regulatory requirements, the Company has established the following protocol:
+
+**1. Policy Statement:**
+We recognize the material impact of [Topic Related to Gap] on our operations. It is our policy to adhere to the strictest reporting standards as defined by ESRS/GRI guidelines.
+
+**2. Proposed Data Table:**
+| KPI Category | 2023 Value | 2024 Target | Methodology |
+| :--- | :--- | :--- | :--- |
+| [Metric A] | [Data Placeholder] | [Target Placeholder] | [Standard Reference] |
+| [Metric B] | [Data Placeholder] | [Target Placeholder] | [Standard Reference] |
+
+**3. Remediation Timeline:**
+Full data collection and external verification for this topic will be completed by Q4 2024.
+
+*Note: This is an AI-generated draft template for demonstration purposes.*`
+                );
+            }, 1000);
+        });
     };
 
     // --- COMPONENTS ---
@@ -345,41 +372,6 @@
         </div>
       </header>
     );
-
-    const ApiKeyModal = ({ isOpen, onSave }) => {
-      const [inputKey, setInputKey] = React.useState('');
-      if (!isOpen) return null;
-      return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full border border-slate-700 shadow-2xl animate-fade-in-up">
-            <h3 className="text-xl font-bold text-white mb-2 text-center">Configure API Key</h3>
-            <p className="text-sm text-slate-400 mb-6 text-center">
-              The previously configured API Key was revoked by Google for safety. Please enter a new key to continue.
-            </p>
-            <input 
-              type="password" 
-              value={inputKey} 
-              onChange={(e) => setInputKey(e.target.value)}
-              placeholder="Paste your Gemini API Key here..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white mb-4 focus:ring-2 focus:ring-audit-500 outline-none transition-all"
-            />
-            <button 
-              onClick={() => onSave(inputKey)}
-              disabled={!inputKey}
-              className="w-full py-3 bg-gradient-to-r from-audit-600 to-audit-500 text-white font-bold rounded-lg hover:from-audit-500 hover:to-audit-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-audit-900/20"
-            >
-              Save & Continue
-            </button>
-            <div className="mt-4 text-center">
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-audit-500 hover:text-audit-400 underline">Generate a new free key here</a>
-            </div>
-            <p className="text-[10px] text-slate-600 text-center mt-4">
-              To skip this screen: Edit this file and paste your key into the <code>PUBLIC_API_KEY</code> variable.
-            </p>
-          </div>
-        </div>
-      );
-    };
 
     const LegalModal = ({ isOpen, onClose, type }) => {
       if (!isOpen) return null;
@@ -491,7 +483,7 @@
       );
     };
 
-    const ReportView = ({ report, onReset, apiKey }) => {
+    const ReportView = ({ report, onReset }) => {
       const [selKey, setSelKey] = React.useState(report.standardsEvaluations[0]?.standardKey);
       const [fixDraft, setFixDraft] = React.useState(null);
       const [loadingFix, setLoadingFix] = React.useState(false);
@@ -499,7 +491,7 @@
 
       const handleFix = async (rec, sector) => {
         setLoadingFix(true);
-        try { const text = await generateDraftFix(rec, sector, apiKey); setFixDraft(text); } catch(e) { setFixDraft("Error generating fix."); }
+        try { const text = await generateDraftFix(rec, sector); setFixDraft(text); } catch(e) { setFixDraft("Error generating fix."); }
         setLoadingFix(false);
       };
 
@@ -598,15 +590,140 @@
       </div>
     );
 
-    const ContactSection = () => (
-      <section id="contact" className="py-24 bg-gradient-to-br from-slate-900 to-slate-950 text-white">
-        <div className="max-w-3xl mx-auto px-6 text-center mb-14 animate-fade-in-up">
-          <h2 className="text-4xl font-extrabold mb-4 tracking-tight">Join Pilot Program</h2>
-          <p className="text-slate-300 text-lg leading-relaxed">Get 3 complimentary Deep Audits.</p>
-        </div>
-        <div className="max-w-3xl mx-auto px-6 animate-fade-in"><div className="relative w-full shadow-2xl rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-800"><div style={{ padding: '40px', textAlign: 'center' }}><p>Demo Form Placeholder</p></div></div></div>
-      </section>
-    );
+    const ContactSection = () => {
+      const [formState, setFormState] = React.useState('idle');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        setFormState('submitting');
+        // Simulate enterprise backend latency
+        setTimeout(() => {
+          setFormState('success');
+        }, 2000);
+      };
+
+      return (
+        <section id="contact" className="py-24 bg-slate-950 relative overflow-hidden text-white">
+          {/* Background Decor */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-96 h-96 bg-audit-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent"></div>
+          </div>
+
+          <div className="container mx-auto px-6 relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              
+              {/* Left Column: Value Prop */}
+              <div className="text-left animate-fade-in-up">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-audit-500/10 border border-audit-500/20 text-audit-500 text-xs font-bold uppercase tracking-widest mb-6">
+                  <span className="w-2 h-2 rounded-full bg-audit-500 animate-pulse"></span>
+                  Pilot Program Access
+                </div>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 leading-tight">
+                  Ready to automate your <span className="text-transparent bg-clip-text bg-gradient-to-r from-audit-400 to-sustain-400">Sustainability Assurance?</span>
+                </h2>
+                <p className="text-slate-400 text-lg leading-relaxed mb-8">
+                  Join the waiting list for Audit Crystal Enterprise. We are currently accepting 
+                  applications for our exclusive pilot program for organizations with {'>'}€50M revenue.
+                </p>
+                
+                <ul className="space-y-4 mb-8">
+                  {[
+                    "Complimentary Deep Forensic Scan (3x)",
+                    "Custom Framework Mapping (GRI/CSRD/ISSB)",
+                    "Dedicated Audit Success Manager",
+                    "API Access for ERP Integration"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center text-slate-300">
+                      <svg className="w-5 h-5 text-audit-500 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Right Column: Enterprise Form */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl animate-fade-in delay-100">
+                {formState === 'success' ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center py-12">
+                    <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-6 border border-emerald-500/20">
+                      <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Application Received</h3>
+                    <p className="text-slate-400 max-w-xs mx-auto">
+                      Thank you for your interest. Our Enterprise team will review your profile and contact you within 24 hours.
+                    </p>
+                    <button 
+                      onClick={() => setFormState('idle')}
+                      className="mt-8 text-sm text-audit-500 hover:text-audit-400 font-medium"
+                    >
+                      Submit another application
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">First Name</label>
+                        <input required type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-audit-500 focus:border-transparent outline-none transition-all" placeholder="Jane" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Last Name</label>
+                        <input required type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-audit-500 focus:border-transparent outline-none transition-all" placeholder="Doe" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Work Email</label>
+                      <input required type="email" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-audit-500 focus:border-transparent outline-none transition-all" placeholder="jane@company.com" />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Company</label>
+                      <input required type="text" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-audit-500 focus:border-transparent outline-none transition-all" placeholder="Acme Corp" />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Job Title</label>
+                       <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-audit-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer">
+                          <option>CFO / Finance Director</option>
+                          <option>Chief Sustainability Officer</option>
+                          <option>Head of ESG / Reporting</option>
+                          <option>Internal Audit / Risk</option>
+                          <option>Consultant / External Auditor</option>
+                          <option>Other</option>
+                       </select>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={formState === 'submitting'}
+                      className="w-full bg-gradient-to-r from-audit-600 to-audit-500 hover:from-audit-500 hover:to-audit-400 text-white font-bold py-4 rounded-xl shadow-lg shadow-audit-900/20 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                    >
+                      {formState === 'submitting' ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          Processing Application...
+                        </>
+                      ) : (
+                        "Request Pilot Access"
+                      )}
+                    </button>
+                    <p className="text-center text-[10px] text-slate-500 mt-4">
+                      By clicking submit, you agree to our <span className="underline hover:text-slate-300 cursor-pointer">Terms</span> and <span className="underline hover:text-slate-300 cursor-pointer">Privacy Policy</span>.
+                    </p>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    };
 
     const WhySection = () => (
       <div className="py-20 text-center bg-slate-950">
@@ -625,142 +742,26 @@
       const [report, setReport] = React.useState(null);
       const [error, setError] = React.useState(null);
       const [legal, setLegal] = React.useState({ open: false, type: 'privacy' });
-      const [userKey, setUserKey] = React.useState('');
-      const [showKeyModal, setShowKeyModal] = React.useState(false);
 
+      // Replaces real API call with mock sequence
       const handleAnalyze = async (file, text) => {
-        // 1. Check if we have a valid key (Hardcoded OR User-entered)
-        const activeKey = PUBLIC_API_KEY || userKey;
-        
-        if (!activeKey) {
-          setShowKeyModal(true);
-          return;
-        }
-
-        setState(AppState.ANALYZING); setError(null);
+        setState(AppState.ANALYZING); 
+        setError(null);
         try { 
-            // Pass the activeKey to the service
-            const res = await analyzeCSRDReadiness({ file, text }, activeKey); 
+            const res = await analyzeCSRDReadiness({ file, text }); 
             setReport(res); 
             setState(AppState.COMPLETE); 
         } 
         catch (e) { 
             console.error(e); 
-            // If the error suggests the key is invalid (e.g. 403), show modal again
-            if (e.message.includes("403") || e.message.includes("API key") || e.message.includes("PERMISSION_DENIED")) {
-                setError("API Key Invalid or Leaked. Please enter a new one.");
-                setShowKeyModal(true);
-                setState(AppState.IDLE);
-            } else {
-                setError(e.message || "Analysis failed."); 
-                setState(AppState.ERROR); 
-            }
+            setError(e.message || "Analysis failed."); 
+            setState(AppState.ERROR); 
         }
       };
 
-      const handleKeySave = (key) => {
-        setUserKey(key);
-        setShowKeyModal(false);
-      };
-
-      const handleDemoLoad = () => {
-        setState(AppState.ANALYZING);
-        setError(null);
-        setTimeout(() => {
-          const demoData = {
-            documentTitle: "Nordic Manufacturing Group 2024",
-            sectorGuess: "Industrial Manufacturing",
-            jurisdictionGuess: "European Union (CSRD In-Scope)",
-            executiveSummary: "The report demonstrates strong foundational compliance with GRI standards but exhibits material gaps in CSRD/ESRS readiness, particularly regarding the 'Double Materiality' process and Scope 3 GHG accounting. While governance structures (G) are mature, quantitative targets for biodiversity (E4) and circular economy (E5) lack the granularity required by the Taxonomy Regulation. Financial materiality (ISSB S1) is well-articulated, but climate scenario analysis (TCFD) is limited to a single 2°C pathway.",
-            globalCompositeScore: 68,
-            auditId: "DEMO-X92",
-            timestamp: new Date().toISOString(),
-            keyGaps: [
-              "ESRS 1: Double Materiality methodology not fully disclosed.",
-              "ESRS E1-6: Scope 3 GHG emissions exclude 'Use of Sold Products'.",
-              "EU Taxonomy: CapEx alignment methodology missing.",
-              "TCFD: Physical risk analysis lacks financial impact modeling."
-            ],
-            globalRecommendations: [
-              "Formalize the Double Materiality stakeholder engagement process (ESRS 1).",
-              "Conduct a full Scope 3 screening to identify material categories beyond supply chain.",
-              "Integrate TCFD scenario analysis into financial planning for >4°C outcomes.",
-              "Align Biodiversity targets with TNFD framework to satisfy ESRS E4 requirements."
-            ],
-            standardsEvaluations: [
-              {
-                standardKey: "CSRD_ESRS",
-                overallScore: 62,
-                maturityLabel: "Maturing",
-                summary: "Partial alignment. General disclosures (ESRS 2) are strong, but environmental specifics (E1-E5) need data rigor.",
-                topics: [
-                   { 
-                     topicId: "ESRS E1 Climate Change", 
-                     score: 75, 
-                     coverageLevel: "partial",
-                     reasoning: "Scope 1 & 2 data is audit-ready. Scope 3 is incomplete. Transition plan is high-level.",
-                     evidenceSnippets: ["Scope 1: 45,000 tCO2e", "Scope 2 (Market-based): 12,000 tCO2e", "We are developing a roadmap for Scope 3."],
-                     recommendations: ["Calculate Scope 3 Cat 11 (Use of Sold Products).", "Publish a quantified Transition Plan aligned with 1.5°C."],
-                     remediationType: "DATA_TABLE",
-                     financialRisk: "Critical",
-                     implementationCost: "High"
-                   },
-                   { 
-                     topicId: "ESRS S1 Own Workforce", 
-                     score: 88, 
-                     coverageLevel: "full",
-                     reasoning: "Excellent disclosure of gender pay gap, injury rates, and collective bargaining coverage.",
-                     evidenceSnippets: ["Gender Pay Gap: 2.1%", "LTIFR: 0.5", "Collective Bargaining: 94% coverage"],
-                     recommendations: ["Maintain current reporting standard."],
-                     remediationType: "NARRATIVE",
-                     financialRisk: "Low",
-                     implementationCost: "Low"
-                   }
-                ]
-              },
-              {
-                standardKey: "ISSB",
-                overallScore: 78,
-                maturityLabel: "Advanced",
-                summary: "Strong connection between sustainability risks and enterprise value (IFRS S1).",
-                topics: [
-                  {
-                    topicId: "IFRS S2 Climate Resilience",
-                    score: 70,
-                    coverageLevel: "partial",
-                    reasoning: "Financial impact of climate transition risks is quantified, but physical risks are qualitative.",
-                    evidenceSnippets: ["Estimated carbon tax impact: €2.5M annually by 2030."],
-                    recommendations: ["Quantify asset value at risk from physical climate events (floods, heat)."],
-                    remediationType: "DATA_TABLE",
-                    financialRisk: "High",
-                    implementationCost: "Medium"
-                  }
-                ]
-              },
-              {
-                standardKey: "EU_TAXONOMY",
-                overallScore: 45,
-                maturityLabel: "Emerging",
-                summary: "Eligibility is reported, but Alignment criteria (Do No Significant Harm) documentation is missing.",
-                topics: [
-                  {
-                    topicId: "Taxonomy Alignment",
-                    score: 45,
-                    coverageLevel: "partial",
-                    reasoning: "Turnover eligibility reported (85%). Alignment assessment for DNSH is anecdotal.",
-                    evidenceSnippets: ["85% of turnover is Taxonomy-eligible."],
-                    recommendations: ["Conduct and document DNSH screening for all eligible activities."],
-                    remediationType: "POLICY",
-                    financialRisk: "Medium",
-                    implementationCost: "High"
-                  }
-                ]
-              }
-            ]
-          };
-          setReport(demoData);
-          setState(AppState.COMPLETE);
-        }, 2500);
+      const handleDemoLoad = async () => {
+         // Reuses the same mock service for "View Demo Report"
+         handleAnalyze(null, null);
       };
 
       const reset = () => { setState(AppState.IDLE); setReport(null); setError(null); };
@@ -769,7 +770,6 @@
         <div className="min-h-screen flex flex-col">
           <div className="bg-gradient-to-r from-audit-600 to-audit-500 text-white text-xs font-bold py-2 text-center cursor-pointer" onClick={() => document.getElementById('contact')?.scrollIntoView()}>Join Pilot Program — Get 3 Free Deep Audits →</div>
           <Navbar />
-          <ApiKeyModal isOpen={showKeyModal} onSave={handleKeySave} />
           <LegalModal isOpen={legal.open} onClose={() => setLegal({ ...legal, open: false })} type={legal.type} />
           
           <main className="flex-grow relative z-10">
@@ -793,7 +793,7 @@
             )}
             {state === AppState.ANALYZING && <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6"><div className="w-24 h-24 border-4 border-slate-800 border-t-audit-500 rounded-full animate-spin"></div><h3 className="text-2xl font-bold text-white">Global Standards Engine</h3><p className="text-slate-400">Forensic Audit in progress...</p></div>}
             {state === AppState.ERROR && <div className="container mx-auto px-4 py-16 text-center"><div className="max-w-md mx-auto bg-slate-900 p-8 rounded-2xl shadow-xl border border-red-900/30"><h3 className="text-xl font-bold text-red-500 mb-2">Analysis Failed</h3><p className="text-slate-400 mb-6">{error}</p><button onClick={reset} className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">Try Again</button></div></div>}
-            {state === AppState.COMPLETE && report && <div className="container mx-auto px-4 py-8"><ReportView report={report} onReset={reset} apiKey={userKey || PUBLIC_API_KEY} /></div>}
+            {state === AppState.COMPLETE && report && <div className="container mx-auto px-4 py-8"><ReportView report={report} onReset={reset} /></div>}
           </main>
           <footer className="py-12 bg-slate-950 border-t border-slate-900 text-center space-y-4">
              <div className="flex justify-center gap-6 text-sm font-medium text-slate-500"><button onClick={() => setLegal({ open: true, type: 'privacy' })} className="hover:text-audit-500">Privacy</button><button onClick={() => setLegal({ open: true, type: 'terms' })} className="hover:text-audit-500">Terms</button></div>
