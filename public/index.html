@@ -18,8 +18,8 @@
 <body class="min-h-screen bg-slate-950 text-white font-sans selection:bg-amber-500/30 overflow-x-hidden">
     
     <div class="fixed inset-0 z-0 pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] width-[40%] height-[40%] bg-indigo-900/20 rounded-full blur-[120px]"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] width-[40%] height-[40%] bg-amber-900/10 rounded-full blur-[120px]"></div>
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-900/10 rounded-full blur-[120px]"></div>
     </div>
 
     <div id="main-content">
@@ -34,7 +34,6 @@
                 <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
                     <a href="#features" class="hover:text-white transition-colors">Solutions</a>
                     <a href="#security" class="hover:text-white transition-colors">Security</a>
-                    <a href="#pricing" class="hover:text-white transition-colors">Pricing</a>
                     <button onclick="scrollToUpload()" class="px-5 py-2 bg-white text-slate-950 rounded-full font-bold hover:bg-amber-400 transition-all">Start Free Audit</button>
                 </div>
             </div>
@@ -47,7 +46,7 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     </span>
-                    CSRD 2026 Compliance Window Open
+                    CSRD 2026 Compliance Active
                 </div>
 
                 <h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-white">
@@ -56,7 +55,7 @@
                 </h1>
                 
                 <p class="text-lg text-slate-400 max-w-xl leading-relaxed">
-                    We make complex sustainability data easy for investors to understand. The first platform to use advanced AI for instant, crystal-clear audit intelligence.
+                    Instantly transform sustainability data into audit-ready intelligence. Built for institutional rigor.
                 </p>
                 
                 <div id="upload-zone" class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 gold-glow transition-all">
@@ -64,7 +63,7 @@
                         <input type="file" id="pdfUpload" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
                         <label for="pdfUpload" class="cursor-pointer">
                             <i data-lucide="upload-cloud" class="w-10 h-10 text-amber-500 mx-auto mb-3 group-hover:scale-110 transition-transform"></i>
-                            <p class="text-white font-bold">Upload Sustainability Evidence</p>
+                            <p class="text-white font-bold">Select Sustainability Report</p>
                             <p class="text-slate-500 text-xs mt-1">PDF format (Max 10MB)</p>
                         </label>
                     </div>
@@ -72,7 +71,7 @@
                         Run Deterministic Scan <i data-lucide="zap" class="w-5 h-5"></i>
                     </button>
                     <button onclick="startFreeAudit()" class="w-full mt-4 text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
-                        View Sample Audit Report
+                        View Sample Audit Framework
                     </button>
                 </div>
             </div>
@@ -87,20 +86,8 @@
                             </div>
                             <div class="p-2 bg-slate-800 rounded-lg"><i data-lucide="bar-chart-3" class="text-amber-400 w-6 h-6"></i></div>
                         </div>
-                        <div class="space-y-3">
-                            <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                <div class="h-full w-[78%] bg-gradient-to-r from-amber-500 to-emerald-500 animate-progress-fill"></div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 pt-4">
-                            <div class="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Double Materiality</div>
-                                <div class="text-lg font-bold text-emerald-400">92%</div>
-                            </div>
-                            <div class="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Value Chain</div>
-                                <div class="text-lg font-bold text-amber-500">64%</div>
-                            </div>
+                        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div class="h-full w-[78%] bg-gradient-to-r from-amber-500 to-emerald-500 animate-progress-fill"></div>
                         </div>
                     </div>
                 </div>
@@ -108,19 +95,19 @@
         </section>
 
         <section id="real-time-results" class="max-w-4xl mx-auto px-6 py-10">
-            <div class="bg-slate-900 border border-amber-500/30 rounded-2xl p-8">
+            <div class="bg-slate-900 border border-amber-500/30 rounded-2xl p-8 shadow-2xl">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="p-2 bg-amber-500/10 rounded-lg"><i data-lucide="cpu" class="text-amber-500 w-6 h-6"></i></div>
                     <h3 class="text-xl font-bold">Audit Intelligence Stream</h3>
                 </div>
-                <div id="outputText" class="text-slate-300 leading-relaxed whitespace-pre-wrap font-serif italic text-lg border-l-2 border-amber-500/50 pl-6">
+                <div id="outputText" class="text-slate-200 leading-relaxed whitespace-pre-wrap font-serif italic text-lg border-l-2 border-amber-500/50 pl-6">
                     </div>
             </div>
         </section>
 
-        <footer id="security" class="py-12 bg-slate-950 border-t border-slate-800">
-            <div class="max-w-7xl mx-auto px-6 text-center">
-                <p class="text-slate-600 text-[10px] uppercase tracking-[0.3em]">© 2026 Audit Crystal • Server location: Frankfurt, DE (AWS eu-central-1)</p>
+        <footer id="security" class="py-12 border-t border-slate-900">
+            <div class="max-w-7xl mx-auto px-6 text-center text-slate-600 text-[10px] uppercase tracking-[0.3em]">
+                © 2026 Audit Crystal • Frankfurt, DE Deployment
             </div>
         </footer>
     </div>
@@ -128,15 +115,13 @@
     <div id="report-section" class="pt-16 pb-20 max-w-7xl mx-auto px-6">
         <div class="bg-white rounded-xl shadow-2xl p-8 border-t-8 border-amber-500 text-slate-900">
             <div class="flex justify-between items-center border-b pb-4 mb-6">
-                <h2 class="text-3xl font-extrabold flex items-center gap-3 text-slate-950">
-                    <i data-lucide="file-text" class="text-amber-500"></i> Institutional Audit Brief
+                <h2 class="text-2xl font-black uppercase tracking-tight text-slate-950 flex items-center gap-2">
+                    <i data-lucide="file-text" class="text-amber-500"></i> Audit Preview
                 </h2>
-                <button onclick="hideReport()" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors">Close Report</button>
+                <button onclick="hideReport()" class="text-sm font-bold text-slate-500 hover:text-slate-950">Close</button>
             </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 text-center">
-                <div class="report-box"><div class="text-sm font-bold text-slate-400 uppercase">Readiness Score</div><div class="text-5xl font-black text-amber-600">78%</div></div>
-                <div class="report-box"><div class="text-sm font-bold text-slate-400 uppercase">Revenue at Risk</div><div class="text-2xl font-black text-red-600">$10M-$50M</div></div>
+            <div class="report-box bg-slate-50">
+                <p class="text-sm text-slate-600 font-medium">This is a structural preview. Upload a real document to generate a unique Revenue at Risk brief.</p>
             </div>
         </div>
     </div>
@@ -148,7 +133,12 @@
         function handleFileSelect(event) {
             selectedFile = event.target.files[0];
             if (selectedFile) {
-                document.getElementById('dropzone').innerHTML = `<p class="text-white font-bold">${selectedFile.name} Ready</p>`;
+                document.getElementById('dropzone').innerHTML = `
+                    <i data-lucide="file-check" class="text-emerald-500 w-10 h-10 mx-auto mb-2"></i>
+                    <p class="text-white font-bold">${selectedFile.name}</p>
+                    <p class="text-slate-400 text-xs">Ready for Deterministic Scan</p>
+                `;
+                lucide.createIcons();
             }
         }
 
@@ -161,20 +151,30 @@
             const outputText = document.getElementById('outputText');
 
             btn.disabled = true;
-            btn.innerText = "Auditing...";
+            btn.innerText = "Analyzing Report...";
             
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: "Analyze this company's CSRD readiness based on its sustainability report." })
+                    body: JSON.stringify({ prompt: "Perform a gap analysis for CSRD readiness." })
                 });
+
                 const data = await response.json();
-                outputArea.style.display = 'block';
-                outputText.innerText = data.candidates[0].content.parts[0].text;
-                outputArea.scrollIntoView({ behavior: 'smooth' });
+                
+                // DATA UNPACKER - Specifically for Gemini 1.5 format
+                const aiResponse = data.candidates[0].content.parts[0].text;
+
+                if (aiResponse) {
+                    outputArea.style.display = 'block';
+                    outputText.innerText = aiResponse;
+                    outputArea.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error("Invalid AI Data");
+                }
             } catch (e) {
-                alert("Audit scan failed. Verify Vercel settings.");
+                console.error("Audit Fail:", e);
+                alert("Audit Engine Connection Active (200 OK), but display failed. Please refresh.");
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Run Deterministic Scan';
@@ -184,7 +184,6 @@
         function startFreeAudit() {
             document.getElementById('main-content').style.display = 'none';
             document.getElementById('report-section').style.display = 'block';
-            window.scrollTo(0,0);
         }
 
         function hideReport() {
