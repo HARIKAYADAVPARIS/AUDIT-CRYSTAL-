@@ -1,123 +1,104 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Crystal | Institutional CSRD Intelligence</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .selection\:bg-amber-500\/30::selection { background-color: rgba(245, 158, 11, 0.3); }
-        #real-time-results { display: none; }
-        .gold-glow { box-shadow: 0 0 40px rgba(245, 158, 11, 0.1); }
-    </style>
-</head>
-<body class="min-h-screen bg-slate-950 text-white font-sans selection:bg-amber-500/30 overflow-x-hidden">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audit Crystal | The Gold Standard in CSRD Reporting</title>
+    <meta name="description" content="AI-powered CSRD readiness assistant. Audit your sustainability reports instantly against ESRS standards." />
     
-    <div class="fixed inset-0 z-0 pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/10 rounded-full blur-[120px]"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-900/10 rounded-full blur-[120px]"></div>
-    </div>
+    <!-- Brand Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>" />
 
-    <div class="relative z-10">
-        <nav class="border-b border-white/5 bg-slate-950/80 backdrop-blur-md sticky top-0">
-            <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="p-1.5 bg-amber-500 rounded-lg text-slate-950">
-                        <i data-lucide="gem" class="w-5 h-5"></i>
-                    </div>
-                    <span class="font-bold text-lg tracking-tight uppercase">Audit Crystal</span>
-                </div>
-            </div>
-        </nav>
-
-        <main class="max-w-4xl mx-auto px-6 pt-20 pb-32">
-            <div class="text-center space-y-6 mb-16">
-                <h1 class="text-5xl md:text-6xl font-black tracking-tighter">
-                    THE <span class="text-amber-500">DETERMINISTIC</span> SCAN.
-                </h1>
-                <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-                    Upload your sustainability evidence. Our engine performs a high-fidelity gap analysis against CSRD 2026 standards.
-                </p>
-            </div>
-
-            <div class="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 gold-glow">
-                <div id="dropzone" class="border-2 border-dashed border-slate-700 rounded-2xl p-12 text-center group hover:border-amber-500/50 transition-all cursor-pointer mb-6">
-                    <input type="file" id="pdfUpload" class="hidden" accept="application/pdf" onchange="handleFile(event)">
-                    <label for="pdfUpload" class="cursor-pointer">
-                        <i data-lucide="upload-cloud" class="w-12 h-12 text-amber-500 mx-auto mb-4"></i>
-                        <p id="file-label" class="text-xl font-bold text-white">Select PDF Report</p>
-                        <p class="text-slate-500 text-sm mt-2">Maximum file size: 10MB</p>
-                    </label>
-                </div>
-
-                <button id="auditBtn" onclick="triggerScan()" class="w-full h-16 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-lg rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl">
-                    INITIATE AUDIT <i data-lucide="zap" class="w-6 h-6"></i>
-                </button>
-            </div>
-
-            <section id="real-time-results" class="mt-12">
-                <div class="bg-slate-900 border-l-4 border-amber-500 rounded-r-2xl p-8 shadow-2xl">
-                    <div class="flex items-center gap-3 mb-6">
-                        <i data-lucide="cpu" class="text-amber-500 w-6 h-6"></i>
-                        <h3 class="font-bold uppercase tracking-widest text-sm text-amber-500">Intelligence Stream</h3>
-                    </div>
-                    <div id="outputText" class="text-slate-200 leading-relaxed font-serif text-lg whitespace-pre-wrap">
-                        </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        lucide.createIcons();
-        let readyFile = null;
-
-        function handleFile(e) {
-            readyFile = e.target.files[0];
-            if (readyFile) {
-                document.getElementById('file-label').innerText = readyFile.name;
-                document.getElementById('file-label').classList.add('text-amber-400');
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              slate: {
+                950: '#020617',
+              }
+            },
+            animation: {
+              'progress-indefinite': 'progress-indefinite 2s infinite linear',
+            },
+            keyframes: {
+              'progress-indefinite': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' },
+              }
             }
+          }
         }
-
-        async function triggerScan() {
-            if (!readyFile) return alert("Please select a file first.");
-            
-            const btn = document.getElementById('auditBtn');
-            const outputArea = document.getElementById('real-time-results');
-            const outputText = document.getElementById('outputText');
-
-            btn.disabled = true;
-            btn.innerHTML = `<span class="animate-pulse">ANALYZING EVIDENCE...</span>`;
-
-            try {
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        prompt: "Perform a gap analysis for CSRD readiness on this sustainability report." 
-                    })
-                });
-
-                const data = await response.json();
-
-                // Simple Extraction from the updated backend
-                if (data.result) {
-                    outputArea.style.display = 'block';
-                    outputText.innerText = data.result;
-                    outputArea.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    alert("Audit Engine Error: " + (data.error || "Malformed Response"));
-                }
-
-            } catch (err) {
-                alert("Critical System Error: Check Vercel logs.");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `INITIATE AUDIT <i data-lucide="zap" class="w-6 h-6"></i>`;
-            }
-        }
+      }
     </script>
-</body>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      /* Custom scrollbar */
+      .report-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+      .report-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .report-scroll::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .report-scroll::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      @keyframes progress-indefinite {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .animate-progress-indefinite {
+        animation: progress-indefinite 2s infinite linear;
+      }
+    </style>
+
+    <!-- Global Environment Shim -->
+    <script>
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+      // This allows the code to run even if API_KEY isn't immediately injected
+      if (typeof window.process.env.API_KEY === 'undefined') {
+        window.process.env.API_KEY = "";
+      }
+    </script>
+
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19?dev",
+    "react-dom": "https://esm.sh/react-dom@19?dev",
+    "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0",
+    "recharts": "https://esm.sh/recharts@2.13.3",
+    "@google/genai": "https://esm.sh/@google/genai",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 selection:bg-amber-100 selection:text-amber-900 overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>
