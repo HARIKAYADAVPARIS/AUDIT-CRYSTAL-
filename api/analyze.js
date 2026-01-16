@@ -1,8 +1,9 @@
 export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!apiKey) return res.status(500).json({ error: "API Key Missing" });
+
+  if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
+
   try {
     const { prompt } = req.body;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
@@ -12,9 +13,14 @@ export default async function handler(req, res) {
         contents: [{ parts: [{ text: prompt }] }]
       })
     });
+
     const data = await response.json();
-    return res.status(200).json(data);
+
+    // EXTRACTION LOGIC: We pull the text out HERE so the frontend is simple
+    const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "The AI was unable to generate a response. Please check your safety settings in Google AI Studio.";
+
+    return res.status(200).json({ result: aiText });
   } catch (error) {
-    return res.status(500).json({ error: 'AI Analysis failed' });
+    return res.status(500).json({ error: "Audit Engine Error" });
   }
 }
