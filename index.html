@@ -1,104 +1,137 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audit Crystal | The Gold Standard in CSRD Reporting</title>
-    <meta name="description" content="AI-powered CSRD readiness assistant. Audit your sustainability reports instantly against ESRS standards." />
-    
-    <!-- Brand Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>" />
-
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              slate: {
-                950: '#020617',
-              }
-            },
-            animation: {
-              'progress-indefinite': 'progress-indefinite 2s infinite linear',
-            },
-            keyframes: {
-              'progress-indefinite': {
-                '0%': { transform: 'translateX(-100%)' },
-                '100%': { transform: 'translateX(100%)' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-      html {
-        scroll-behavior: smooth;
-      }
-      /* Custom scrollbar */
-      .report-scroll::-webkit-scrollbar {
-        width: 8px;
-      }
-      .report-scroll::-webkit-scrollbar-track {
-        background: #f1f1f1;
-      }
-      .report-scroll::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
-      .report-scroll::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-
-      @keyframes progress-indefinite {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-      }
-      .animate-progress-indefinite {
-        animation: progress-indefinite 2s infinite linear;
-      }
+        .selection\:bg-amber-500\/30::selection { background-color: rgba(245, 158, 11, 0.3); }
+        @keyframes fill-progress { 0% { width: 30%; } 100% { width: 78%; } }
+        .animate-progress-fill { animation: fill-progress 2s forwards; }
+        #report-section, #real-time-results { display: none; }
+        .report-box { background-color: #ffffff; border: 1px solid #e2e8f0; padding: 1.5rem; border-radius: 0.75rem; color: #0f172a; }
+        .gold-glow { box-shadow: 0 0 25px rgba(245, 158, 11, 0.15); }
     </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-white font-sans selection:bg-amber-500/30 overflow-x-hidden">
+    
+    <div class="fixed inset-0 z-0 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-900/20 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-900/10 rounded-full blur-[120px]"></div>
+    </div>
 
-    <!-- Global Environment Shim -->
+    <div id="main-content">
+        <nav class="relative z-50 border-b border-white/5 bg-slate-950/80 backdrop-blur-md sticky top-0">
+            <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                <a href="#" class="flex items-center gap-2">
+                    <div class="p-1.5 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg">
+                        <i data-lucide="gem" class="text-white w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-wide uppercase text-slate-100">Audit Crystal</span>
+                </a>
+                <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+                    <button onclick="scrollToUpload()" class="px-5 py-2 bg-white text-slate-950 rounded-full font-bold hover:bg-amber-400 transition-all">Start Free Audit</button>
+                </div>
+            </div>
+        </nav>
+
+        <section class="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32 grid lg:grid-cols-2 gap-16 items-center">
+            <div class="space-y-8">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/50 border border-slate-800 text-amber-400 text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
+                    CSRD 2026 Compliance Active
+                </div>
+                <h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] text-white">
+                    The <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600">Gold Standard</span> in <br />
+                    CSRD Reporting.
+                </h1>
+                <p class="text-lg text-slate-400 max-w-xl leading-relaxed">Instantly transform sustainability data into audit-ready intelligence.</p>
+                
+                <div id="upload-zone" class="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 gold-glow transition-all">
+                    <div id="dropzone" class="border-2 border-dashed border-slate-700 rounded-xl p-8 hover:border-amber-500/50 transition-all cursor-pointer text-center group mb-4">
+                        <input type="file" id="pdfUpload" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
+                        <label for="pdfUpload" class="cursor-pointer">
+                            <i data-lucide="upload-cloud" class="w-10 h-10 text-amber-500 mx-auto mb-3 group-hover:scale-110 transition-transform"></i>
+                            <p class="text-white font-bold">Select Sustainability Report</p>
+                        </label>
+                    </div>
+                    <button id="auditBtn" onclick="runRealTimeAudit()" class="w-full h-14 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg transition-all flex items-center justify-center gap-2">
+                        Run Deterministic Scan <i data-lucide="zap" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="real-time-results" class="max-w-4xl mx-auto px-6 py-10 mb-20">
+            <div class="bg-slate-900 border border-amber-500/30 rounded-2xl p-8 shadow-2xl">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="p-2 bg-amber-500/10 rounded-lg"><i data-lucide="cpu" class="text-amber-500 w-6 h-6"></i></div>
+                    <h3 class="text-xl font-bold uppercase tracking-tight">Audit Results</h3>
+                </div>
+                <div id="outputText" class="text-slate-200 leading-relaxed whitespace-pre-wrap font-serif text-lg border-l-2 border-amber-500/50 pl-6">
+                </div>
+            </div>
+        </section>
+    </div>
+
     <script>
-      window.process = window.process || {};
-      window.process.env = window.process.env || {};
-      // This allows the code to run even if API_KEY isn't immediately injected
-      if (typeof window.process.env.API_KEY === 'undefined') {
-        window.process.env.API_KEY = "";
-      }
-    </script>
+        lucide.createIcons();
+        let selectedFile = null;
 
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19?dev",
-    "react-dom": "https://esm.sh/react-dom@19?dev",
-    "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
-    "lucide-react": "https://esm.sh/lucide-react@0.460.0",
-    "recharts": "https://esm.sh/recharts@2.13.3",
-    "@google/genai": "https://esm.sh/@google/genai",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
-  }
-}
-</script>
-  </head>
-  <body class="bg-slate-50 text-slate-900 selection:bg-amber-100 selection:text-amber-900 overflow-x-hidden">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('dropzone').innerHTML = `<i data-lucide="file-check" class="text-emerald-500 w-10 h-10 mx-auto mb-2"></i><p class="text-white font-bold">${selectedFile.name}</p>`;
+                lucide.createIcons();
+            }
+        }
+
+        function scrollToUpload() { document.getElementById('upload-zone').scrollIntoView({ behavior: 'smooth' }); }
+
+        async function runRealTimeAudit() {
+            if (!selectedFile) return alert("Please upload a PDF first.");
+            const btn = document.getElementById('auditBtn');
+            const outputArea = document.getElementById('real-time-results');
+            const outputText = document.getElementById('outputText');
+
+            btn.disabled = true;
+            btn.innerText = "Analyzing Intelligence...";
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: "As an expert CSRD auditor, analyze the sustainability compliance of this report." })
+                });
+
+                const data = await response.json();
+                console.log("Raw API Response:", data);
+
+                // IMPROVED DATA UNPACKER
+                let aiResponse = "";
+                if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                    aiResponse = data.candidates[0].content.parts[0].text;
+                } else if (data.text) {
+                    aiResponse = data.text;
+                } else if (typeof data === 'string') {
+                    aiResponse = data;
+                } else {
+                    aiResponse = "Error: The AI returned a successful connection but the data structure was unrecognized. Please check your Vercel logs.";
+                }
+
+                outputArea.style.display = 'block';
+                outputText.innerText = aiResponse;
+                outputArea.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (e) {
+                console.error("Audit Fail:", e);
+                alert("Connection failed. Check your internet or API key settings in Vercel.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Run Deterministic Scan';
+            }
+        }
+    </script>
+</body>
 </html>
