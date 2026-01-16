@@ -1,13 +1,15 @@
-import { GoogleGenerativeAI } from "@google/genai";
+
+    import { GoogleGenerativeAI } from "@google/genai";
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'edge', // This is essential for real-time streaming
 };
 
 export default async function handler(req) {
   try {
     const { fileBase64, mimeType } = await req.json();
     
+    // Safety check for your environment variable
     if (!process.env.GEMINI_API_KEY) {
       return new Response(JSON.stringify({ error: "API Key Missing" }), { status: 500 });
     }
@@ -16,13 +18,8 @@ export default async function handler(req) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const result = await model.generateContentStream([
-      {
-        inlineData: {
-          data: fileBase64,
-          mimeType: mimeType
-        }
-      },
-      { text: "Perform a high-fidelity CSRD audit. Identify specific gaps. Output in a professional audit-log style." },
+      { inlineData: { data: fileBase64, mimeType: mimeType } },
+      { text: "Perform a high-fidelity CSRD audit. Output in a professional audit-log style." },
     ]);
 
     const encoder = new TextEncoder();
@@ -39,7 +36,6 @@ export default async function handler(req) {
       headers: { "Content-Type": "text/plain; charset=utf-8" }
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Audit failed";
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Audit Engine Offline" }), { status: 500 });
   }
 }
