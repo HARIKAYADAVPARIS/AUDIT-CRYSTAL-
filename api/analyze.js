@@ -1,30 +1,45 @@
-export default async function handler(req, res) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API Key Missing" });
+import { GoogleGenerativeAI } from "@google/genai";
 
+export const config = {
+  runtime: 'edge', // Edge runtime is required for real-time streaming
+};
+
+export default async function handler(req: Request) {
   try {
-    const { prompt } = req.body;
+    const { fileBase64, mimeType } = await req.json();
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        // This block tells Gemini to allow professional/financial analysis
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      })
+    if (!process.env.GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "API Key Missing" }), { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Initiate the streaming analysis
+    const result = await model.generateContentStream([
+      {
+        inlineData: {
+          data: fileBase64,
+          mimeType: mimeType
+        }
+      },
+      { text: "Perform a high-fidelity CSRD audit against ESRS 1-12. Be deterministic. Identify specific gaps and provide board-level remediation drafts. Output in a professional audit-log style." },
+    ]);
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of result.stream) {
+          controller.enqueue(encoder.encode(chunk.text()));
+        }
+        controller.close();
+      },
     });
 
-    const data = await response.json();
-    const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Safety block triggered. Please use a different report for testing.";
-
-    return res.status(200).json({ result: aiText });
-  } catch (error) {
-    return res.status(500).json({ error: "System Error" });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" }
+    });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
