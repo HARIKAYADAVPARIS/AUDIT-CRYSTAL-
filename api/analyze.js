@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI } from "@google/genai";
 
 export const config = {
-  runtime: 'edge', // Edge runtime is required for real-time streaming
+  runtime: 'edge',
 };
 
-export default async function handler(req: Request) {
+export default async function handler(req) {
   try {
     const { fileBase64, mimeType } = await req.json();
     
@@ -15,7 +15,6 @@ export default async function handler(req: Request) {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Initiate the streaming analysis
     const result = await model.generateContentStream([
       {
         inlineData: {
@@ -23,7 +22,7 @@ export default async function handler(req: Request) {
           mimeType: mimeType
         }
       },
-      { text: "Perform a high-fidelity CSRD audit against ESRS 1-12. Be deterministic. Identify specific gaps and provide board-level remediation drafts. Output in a professional audit-log style." },
+      { text: "Perform a high-fidelity CSRD audit. Identify specific gaps. Output in a professional audit-log style." },
     ]);
 
     const encoder = new TextEncoder();
@@ -39,7 +38,8 @@ export default async function handler(req: Request) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" }
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Audit failed";
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 }
